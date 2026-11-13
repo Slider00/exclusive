@@ -36,9 +36,12 @@ export const metadata: Metadata = {
     canonical: siteUrl,
   },
   icons: {
-    icon: "/images/logo-icon.png",
-    shortcut: "/images/logo-icon.png",
-    apple: "/images/logo-icon.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/images/logo-icon.png", sizes: "192x192", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-icon.png",
   },
   openGraph: {
     title: "EXCLUSIVE Spa Vehículos | Detallado de Autos y Motos en Medellín",
