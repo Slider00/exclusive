@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+.clean_db_v1_done
 
 # debug
 npm-debug.log*
@@ -30,8 +31,18 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (secrets, local environments, credentials)
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env*.local
 .env*
+!.env.example
 
 # vercel
 .vercel

@@ -1,0 +1,271 @@
+import { NextRequest, NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
+import { connectToDatabase, isMongoConfigured } from "@/lib/mongodb";
+import Booking from "@/models/Booking";
+import Expense from "@/models/Expense";
+
+const CLEAN_START_MARKER = path.join(process.cwd(), ".clean_db_v1_done");
+
+async function ensureMongoCleanStartOnce() {
+  try {
+    if (!fs.existsSync(CLEAN_START_MARKER)) {
+      await Booking.deleteMany({});
+      await Expense.deleteMany({});
+      fs.writeFileSync(CLEAN_START_MARKER, new Date().toISOString(), "utf8");
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+// GET /api/bookings - Fetch all bookings
+export async function GET() {
+  try {
+    if (!isMongoConfigured()) {
+      return NextResponse.json({
+        success: false,
+        fallback: true,
+        message: "MONGODB_URI no configurado en .env.local",
+        bookings: [],
+      });
+    }
+
+    const conn = await connectToDatabase();
+    if (!conn) {
+      return NextResponse.json({
+        success: false,
+        fallback: true,
+        message: "No se pudo conectar a MongoDB",
+        bookings: [],
+      });
+    }
+
+    await ensureMongoCleanStartOnce();
+
+    const bookings = await Booking.find().sort({ createdAt: -1 }).lean();
+
+    const formatted = bookings.map((b: any) => ({
+      id: b._id.toString(),
+      code: b.code,
+      licensePlate: b.licensePlate,
+      vehicleType: b.vehicleType,
+      serviceId: b.serviceId,
+      serviceName: b.serviceName,
+      originalPrice: b.originalPrice ?? b.price,
+      discountPercent: b.discountPercent || 0,
+      promoCode: b.promoCode || "",
+      price: b.price,
+      day: b.day,
+      time: b.time,
+      clientName: b.clientName,
+      clientPhone: b.clientPhone,
+      clientNotes: b.clientNotes || "",
+      isWalkIn: Boolean(b.isWalkIn),
+      bay: b.bay,
+      stage: b.stage,
+      stageName: b.stageName,
+      paymentMethod: b.paymentMethod,
+      isPaid: Boolean(b.isPaid),
+      createdAt: b.createdAt ? new Date(b.createdAt).toISOString() : new Date().toISOString(),
+      updatedAt: b.updatedAt ? new Date(b.updatedAt).toISOString() : new Date().toISOString(),
+    }));
+
+    return NextResponse.json({
+      success: true,
+      fallback: false,
+      count: formatted.length,
+      bookings: formatted,
+    });
+  } catch (error: any) {
+    console.error("API GET /api/bookings error:", error);
+    return NextResponse.json(
+      { success: false, fallback: true, error: error.message, bookings: [] },
+      { status: 500 }
+    );
+  }
+}
+
+// POST /api/bookings - Create new booking
+export async function POST(req: NextRequest) {
+  try {
+    const data = await req.json();
+
+    if (!isMongoConfigured()) {
+      return NextResponse.json({
+        success: false,
+        fallback: true,
+        message: "MONGODB_URI no configurado",
+      });
+    }
+
+    await connectToDatabase();
+
+    const code = data.code || `EXC-${Math.floor(1000 + Math.random() * 9000)}`;
+    const rawPlate = (data.licensePlate || "EXC-000").toUpperCase();
+    const cleanAlphaPlate = rawPlate.replace(/[^A-Z0-9]/g, "");
+
+    let discountPercent = Number(data.discountPercent) || 0;
+    let promoCode = data.promoCode ? String(data.promoCode).toUpperCase() : "";
+    const originalPrice = Number(data.originalPrice) || Number(data.price) || 0;
+    let finalPrice = Number(data.price) || 0;
+
+    // Server-side guard: ensure a plate can only redeem INAUGURACION15 once
+    if (discountPercent > 0 || promoCode === "INAUGURACION15") {
+      const allPlateBookings = await Booking.find({
+        $or: [{ discountPercent: { $gt: 0 } }, { promoCode: "INAUGURACION15" }],
+      }).lean();
+
+      const alreadyUsed = allPlateBookings.some(
+        (b: any) =>
+          (b.licensePlate || "").toUpperCase().replace(/[^A-Z0-9]/g, "") ===
+          cleanAlphaPlate
+      );
+
+      if (alreadyUsed) {
+        discountPercent = 0;
+        promoCode = "";
+        finalPrice = originalPrice;
+      }
+    }
+
+    const newBooking: any = await Booking.create({
+      code,
+      licensePlate: rawPlate,
+      vehicleType: data.vehicleType || "carro",
+      serviceId: data.serviceId || "lavado-full",
+      serviceName: data.serviceName || "Lavado Full",
+      originalPrice,
+      discountPercent,
+      promoCode,
+      price: finalPrice,
+      day: data.day || "Hoy",
+      time: data.time || "10:00 AM",
+      clientName: data.clientName || "Cliente",
+      clientPhone: data.clientPhone || "3100000000",
+      clientNotes: data.clientNotes || "",
+      isWalkIn: Boolean(data.isWalkIn),
+      bay: data.bay || "Bahía 1 (Lavado)",
+      stage: (Number(data.stage) || 1) as 1 | 2 | 3 | 4 | 5,
+      stageName: data.stageName || "En Espera / Recepción",
+      paymentMethod: data.paymentMethod || "pendiente",
+      isPaid: Boolean(data.isPaid),
+    });
+
+    return NextResponse.json({
+      success: true,
+      booking: {
+        id: newBooking._id.toString(),
+        code: newBooking.code,
+        licensePlate: newBooking.licensePlate,
+        vehicleType: newBooking.vehicleType,
+        serviceId: newBooking.serviceId,
+        serviceName: newBooking.serviceName,
+        originalPrice: newBooking.originalPrice,
+        discountPercent: newBooking.discountPercent,
+        promoCode: newBooking.promoCode,
+        price: newBooking.price,
+        day: newBooking.day,
+        time: newBooking.time,
+        clientName: newBooking.clientName,
+        clientPhone: newBooking.clientPhone,
+        clientNotes: newBooking.clientNotes,
+        isWalkIn: newBooking.isWalkIn,
+        bay: newBooking.bay,
+        stage: newBooking.stage,
+        stageName: newBooking.stageName,
+        paymentMethod: newBooking.paymentMethod,
+        isPaid: newBooking.isPaid,
+        createdAt: newBooking.createdAt ? new Date(newBooking.createdAt).toISOString() : new Date().toISOString(),
+        updatedAt: newBooking.updatedAt ? new Date(newBooking.updatedAt).toISOString() : new Date().toISOString(),
+      },
+    });
+  } catch (error: any) {
+    console.error("API POST /api/bookings error:", error);
+    return NextResponse.json(
+      { success: false, fallback: true, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT /api/bookings - Update booking stage / payment / bay
+export async function PUT(req: NextRequest) {
+  try {
+    const data = await req.json();
+    const { id, code, stage, stageName, bay, isPaid, paymentMethod } = data;
+
+    if (!isMongoConfigured()) {
+      return NextResponse.json({ success: false, fallback: true });
+    }
+
+    await connectToDatabase();
+
+    const query: any = {};
+    if (id && id.length === 24) {
+      query._id = id;
+    } else if (code) {
+      query.code = code;
+    } else {
+      query._id = id;
+    }
+
+    const updateFields: any = { updatedAt: new Date() };
+    if (stage !== undefined) updateFields.stage = stage;
+    if (stageName !== undefined) updateFields.stageName = stageName;
+    if (bay !== undefined) updateFields.bay = bay;
+    if (isPaid !== undefined) updateFields.isPaid = isPaid;
+    if (paymentMethod !== undefined) updateFields.paymentMethod = paymentMethod;
+
+    const updated = await Booking.findOneAndUpdate(query, updateFields, {
+      new: true,
+    }).lean();
+
+    return NextResponse.json({
+      success: true,
+      booking: updated,
+    });
+  } catch (error: any) {
+    console.error("API PUT /api/bookings error:", error);
+    return NextResponse.json(
+      { success: false, fallback: true, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/bookings - Delete booking (or all if all=true)
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    const code = searchParams.get("code");
+    const all = searchParams.get("all");
+
+    if (!isMongoConfigured()) {
+      return NextResponse.json({ success: false, fallback: true });
+    }
+
+    await connectToDatabase();
+
+    if (all === "true") {
+      await Booking.deleteMany({});
+      return NextResponse.json({ success: true, clearedAll: true });
+    }
+
+    const query: any = {};
+    if (id && id.length === 24) query._id = id;
+    else if (code) query.code = code;
+    else if (id) query._id = id;
+
+    await Booking.deleteOne(query);
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("API DELETE /api/bookings error:", error);
+    return NextResponse.json(
+      { success: false, fallback: true, error: error.message },
+      { status: 500 }
+    );
+  }
+}
