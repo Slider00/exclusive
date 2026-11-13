@@ -48,6 +48,7 @@ export async function GET() {
       bay: b.bay,
       stage: b.stage,
       stageName: b.stageName,
+      assignedEmployee: b.assignedEmployee || "",
       paymentMethod: b.paymentMethod,
       isPaid: Boolean(b.isPaid),
       createdAt: b.createdAt ? new Date(b.createdAt).toISOString() : new Date().toISOString(),
@@ -84,7 +85,13 @@ export async function POST(req: NextRequest) {
 
     await connectToDatabase();
 
-    const code = data.code || `EXC-${Math.floor(1000 + Math.random() * 9000)}`;
+    let code = (data.code || `EXC-${Math.floor(100000 + Math.random() * 900000)}`).toUpperCase();
+    let codeExists = await Booking.exists({ code });
+    while (codeExists) {
+      code = `EXC-${Math.floor(100000 + Math.random() * 900000)}`;
+      codeExists = await Booking.exists({ code });
+    }
+
     const rawPlate = (data.licensePlate || "EXC-000").toUpperCase();
     const cleanAlphaPlate = rawPlate.replace(/[^A-Z0-9]/g, "");
 
@@ -132,6 +139,7 @@ export async function POST(req: NextRequest) {
       bay: data.bay || "Bahía 1 (Lavado)",
       stage: (Number(data.stage) || 1) as 1 | 2 | 3 | 4 | 5,
       stageName: data.stageName || "En Espera / Recepción",
+      assignedEmployee: data.assignedEmployee || "",
       paymentMethod: data.paymentMethod || "pendiente",
       isPaid: Boolean(data.isPaid),
     });
@@ -159,6 +167,7 @@ export async function POST(req: NextRequest) {
         bay: newBooking.bay,
         stage: newBooking.stage,
         stageName: newBooking.stageName,
+        assignedEmployee: newBooking.assignedEmployee || "",
         paymentMethod: newBooking.paymentMethod,
         isPaid: newBooking.isPaid,
         createdAt: newBooking.createdAt ? new Date(newBooking.createdAt).toISOString() : new Date().toISOString(),
@@ -178,7 +187,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const data = await req.json();
-    const { id, code, stage, stageName, bay, isPaid, paymentMethod } = data;
+    const { id, code, stage, stageName, bay, isPaid, paymentMethod, assignedEmployee } = data;
 
     if (!isMongoConfigured()) {
       return NextResponse.json({ success: false, fallback: true });
@@ -201,6 +210,7 @@ export async function PUT(req: NextRequest) {
     if (bay !== undefined) updateFields.bay = bay;
     if (isPaid !== undefined) updateFields.isPaid = isPaid;
     if (paymentMethod !== undefined) updateFields.paymentMethod = paymentMethod;
+    if (assignedEmployee !== undefined) updateFields.assignedEmployee = assignedEmployee;
 
     const updated = await Booking.findOneAndUpdate(query, updateFields, {
       new: true,

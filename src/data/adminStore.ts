@@ -384,13 +384,13 @@ export function getStoredBookings(): AdminBooking[] {
 
 // Helper: Save a new booking (Walk-in or Web)
 export function saveNewBooking(booking: Omit<AdminBooking, "id" | "code" | "createdAt" | "updatedAt" | "stageName">): AdminBooking {
-  const code = `EXC-${Math.floor(1000 + Math.random() * 9000)}`;
+  const code = `EXC-${Math.floor(100000 + Math.random() * 900000)}`;
   const stageName = STAGE_CONFIG[booking.stage]?.label || "En Espera";
   const now = new Date().toISOString();
 
   const newBooking: AdminBooking = {
     ...booking,
-    id: `b-${Date.now()}`,
+    id: `b-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
     code,
     stageName,
     createdAt: now,
@@ -398,7 +398,7 @@ export function saveNewBooking(booking: Omit<AdminBooking, "id" | "code" | "crea
   };
 
   const current = getStoredBookings();
-  const updated = [newBooking, ...current];
+  const updated = [newBooking, ...current.filter((b) => b.id !== newBooking.id && b.code !== newBooking.code)];
 
   if (typeof window !== "undefined") {
     localStorage.setItem(STORAGE_KEY_BOOKINGS, JSON.stringify(updated));

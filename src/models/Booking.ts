@@ -20,6 +20,7 @@ export interface IBooking {
   bay: string;
   stage: 1 | 2 | 3 | 4 | 5;
   stageName: string;
+  assignedEmployee?: string;
   paymentMethod: "efectivo" | "nequi" | "daviplata" | "tarjeta" | "pendiente";
   isPaid: boolean;
   createdAt?: Date;
@@ -122,6 +123,10 @@ const BookingSchema = new Schema<IBooking>(
     stageName: {
       type: String,
       default: "En Espera / Recepción",
+    },
+    assignedEmployee: {
+      type: String,
+      default: "",
     },
     paymentMethod: {
       type: String,

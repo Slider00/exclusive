@@ -106,7 +106,7 @@ export default function AdminDashboardPage() {
   const [selectedFilterStage, setSelectedFilterStage] = useState<string>("todos");
   const [activeTab, setActiveTab] = useState<"kanban" | "table" | "caja" | "agenda" | "productos">("kanban");
   const [tableCurrentPage, setTableCurrentPage] = useState<number>(1);
-  const ITEMS_PER_PAGE = 10;
+  const [itemsPerPage, setItemsPerPage] = useState<number>(50);
 
   // Modals
   const [isWalkInOpen, setIsWalkInOpen] = useState<boolean>(false);
@@ -138,8 +138,12 @@ export default function AdminDashboardPage() {
 
   // Check auth session on mount & initialize dates
   useEffect(() => {
-    const now = new Date();
-    const today = now.toISOString().slice(0, 10);
+    let today = "";
+    try {
+      today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(new Date());
+    } catch {
+      today = new Date().toISOString().slice(0, 10);
+    }
     setTodayIso(today);
     setAgendaDate(today);
 
@@ -585,13 +589,13 @@ export default function AdminDashboardPage() {
     setTableCurrentPage(1);
   }, [searchPlate, selectedFilterStage, dateFilterPreset, selectedCustomDate]);
 
-  // 10-by-10 Pagination calculations for Vehicle List Table
-  const totalTablePages = Math.max(1, Math.ceil(filteredBookings.length / ITEMS_PER_PAGE));
+  // Dynamic Pagination calculations for Vehicle List Table
+  const totalTablePages = Math.max(1, Math.ceil(filteredBookings.length / itemsPerPage));
   const safeTablePage = Math.min(tableCurrentPage, totalTablePages);
-  const tableStartIndex = (safeTablePage - 1) * ITEMS_PER_PAGE;
+  const tableStartIndex = (safeTablePage - 1) * itemsPerPage;
   const paginatedBookings = filteredBookings.slice(
     tableStartIndex,
-    tableStartIndex + ITEMS_PER_PAGE
+    tableStartIndex + itemsPerPage
   );
 
   // Filtered Expenses for Caja and Financial metrics
@@ -1224,10 +1228,31 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* Active Filter Metrics Indicator */}
-          <div className="text-[11px] text-slate-400 flex items-center gap-3">
+          <div className="text-[11px] text-slate-400 flex items-center gap-3 flex-wrap">
             <span>
               Vehículos encontrados: <strong className="text-cyan-400 font-mono">{filteredBookings.length}</strong>
+              {bookings.length > filteredBookings.length && (
+                <span className="text-amber-300 ml-1.5 font-semibold">
+                  ({bookings.length - filteredBookings.length} turnos en otras fechas o estados)
+                </span>
+              )}
             </span>
+
+            {bookings.length > filteredBookings.length && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDateFilterPreset("todos");
+                  setSelectedCustomDate("");
+                  setSelectedFilterStage("todos");
+                  setSearchPlate("");
+                }}
+                className="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 transition-all cursor-pointer"
+              >
+                Mostrar todos los {bookings.length} turnos
+              </button>
+            )}
+
             {canViewFinancials && (
               <>
                 <span>•</span>
@@ -1558,18 +1583,44 @@ export default function AdminDashboardPage() {
                 </select>
               </div>
 
-              <span className="text-xs text-slate-400">
-                Mostrando{" "}
-                <strong className="text-white">
-                  {filteredBookings.length === 0
-                    ? 0
-                    : `${tableStartIndex + 1}–${Math.min(
-                        tableStartIndex + ITEMS_PER_PAGE,
-                        filteredBookings.length
-                      )}`}
-                </strong>{" "}
-                de <strong className="text-cyan-400">{filteredBookings.length}</strong> turnos filtrados ({ITEMS_PER_PAGE} por página)
-              </span>
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-xs text-slate-400">
+                  Mostrando{" "}
+                  <strong className="text-white">
+                    {filteredBookings.length === 0
+                      ? 0
+                      : `${tableStartIndex + 1}–${Math.min(
+                          tableStartIndex + itemsPerPage,
+                          filteredBookings.length
+                        )}`}
+                  </strong>{" "}
+                  de <strong className="text-cyan-400">{filteredBookings.length}</strong> turnos
+                  {bookings.length > filteredBookings.length && (
+                    <span className="text-slate-500"> (de {bookings.length} totales en sistema)</span>
+                  )}
+                </span>
+
+                <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                  <span className="text-[11px] font-bold">Ver:</span>
+                  {[25, 50, 100, 9999].map((count) => (
+                    <button
+                      key={count}
+                      type="button"
+                      onClick={() => {
+                        setItemsPerPage(count);
+                        setTableCurrentPage(1);
+                      }}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all ${
+                        itemsPerPage === count
+                          ? "bg-cyan-500 text-slate-950 font-black shadow-sm"
+                          : "bg-white/5 hover:bg-white/10 text-slate-300"
+                      }`}
+                    >
+                      {count === 9999 ? "Todos" : count}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Mobile Cards View (Hidden on md and up) */}
@@ -1864,7 +1915,7 @@ export default function AdminDashboardPage() {
                   Página <strong className="text-white font-mono">{safeTablePage}</strong> de{" "}
                   <strong className="text-cyan-400 font-mono">{totalTablePages}</strong> •{" "}
                   Mostrando {tableStartIndex + 1} a{" "}
-                  {Math.min(tableStartIndex + ITEMS_PER_PAGE, filteredBookings.length)} de{" "}
+                  {Math.min(tableStartIndex + itemsPerPage, filteredBookings.length)} de{" "}
                   {filteredBookings.length} vehículos
                 </span>
 

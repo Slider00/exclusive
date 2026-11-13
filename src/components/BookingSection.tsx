@@ -258,9 +258,9 @@ export default function BookingSection({
 
     // Simulate instant local reservation storage
     setTimeout(() => {
-      const bookingCode = `EXC-${Math.floor(1000 + Math.random() * 9000)}`;
+      const bookingCode = `EXC-${Math.floor(100000 + Math.random() * 900000)}`;
       const newBooking = {
-        id: `b-${Date.now()}`,
+        id: `b-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         code: bookingCode,
         licensePlate: licensePlate.toUpperCase(),
         vehicleType,
