@@ -560,6 +560,43 @@ export function updateBookingStage(
   return updated;
 }
 
+// Helper: Update booking payment method and/or paid status
+export function updateBookingPayment(
+  bookingId: string,
+  paymentMethod: AdminBooking["paymentMethod"],
+  isPaid?: boolean
+): AdminBooking[] {
+  const current = getStoredBookings();
+  const willBePaid = isPaid !== undefined ? isPaid : paymentMethod !== "pendiente";
+
+  const updated = current.map((b) => {
+    if (b.id === bookingId || b.code === bookingId) {
+      return {
+        ...b,
+        paymentMethod,
+        isPaid: willBePaid,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+    return b;
+  });
+
+  if (typeof window !== "undefined") {
+    localStorage.setItem(STORAGE_KEY_BOOKINGS, JSON.stringify(updated));
+    fetch("/api/bookings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: bookingId,
+        paymentMethod,
+        isPaid: willBePaid,
+      }),
+    }).catch(() => {});
+  }
+
+  return updated;
+}
+
 // Helper: Assign or update employee/washer for a booking
 export function updateBookingEmployee(
   bookingId: string,

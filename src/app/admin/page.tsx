@@ -13,6 +13,7 @@ import {
   syncEmployeesWithBackend,
   getStoredBookings,
   updateBookingStage,
+  updateBookingPayment,
   updateBookingEmployee,
   deleteBooking,
   getStoredExpenses,
@@ -424,7 +425,16 @@ export default function AdminDashboardPage() {
 
   // Toggle paid status
   const handleTogglePaid = (booking: AdminBooking) => {
-    const updated = updateBookingStage(booking.id, booking.stage, booking.bay, !booking.isPaid);
+    const nextPaid = !booking.isPaid;
+    const nextMethod = nextPaid ? (booking.paymentMethod && booking.paymentMethod !== "pendiente" ? booking.paymentMethod : "efectivo") : "pendiente";
+    const updated = updateBookingPayment(booking.id, nextMethod, nextPaid);
+    setBookings(updated);
+  };
+
+  // Change payment method directly
+  const handleChangePaymentMethod = (bookingId: string, method: AdminBooking["paymentMethod"]) => {
+    const willBePaid = method !== "pendiente";
+    const updated = updateBookingPayment(bookingId, method, willBePaid);
     setBookings(updated);
   };
 
@@ -1532,19 +1542,28 @@ export default function AdminDashboardPage() {
                           <div className="text-[10px] text-slate-400 flex items-center justify-between pt-1 border-t border-white/5">
                             <span className="truncate">{b.bay}</span>
                             {canViewFinancials ? (
-                              <button
-                                onClick={() => handleTogglePaid(b)}
-                                className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-colors ${
+                              <select
+                                value={b.isPaid ? (b.paymentMethod || "efectivo") : "pendiente"}
+                                onChange={(e) => {
+                                  const val = e.target.value as AdminBooking["paymentMethod"];
+                                  handleChangePaymentMethod(b.id, val);
+                                }}
+                                className={`px-1.5 py-0.5 rounded text-[9px] font-bold border focus:outline-none cursor-pointer max-w-[105px] truncate ${
                                   b.isPaid
-                                    ? "bg-emerald-500/20 text-emerald-300"
-                                    : "bg-amber-500/20 text-amber-300"
+                                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                                    : "bg-amber-500/20 text-amber-300 border-amber-500/30"
                                 }`}
+                                title="Seleccionar estado y método de pago"
                               >
-                                {b.isPaid ? "Pagado" : "Pendiente"}
-                              </button>
+                                <option value="pendiente" className="bg-slate-900 text-amber-300">⏳ Pendiente</option>
+                                <option value="efectivo" className="bg-slate-900 text-emerald-300">💵 Efectivo</option>
+                                <option value="nequi" className="bg-slate-900 text-purple-300">📱 Nequi</option>
+                                <option value="daviplata" className="bg-slate-900 text-red-300">🏦 Daviplata</option>
+                                <option value="tarjeta" className="bg-slate-900 text-cyan-300">💳 Tarjeta</option>
+                              </select>
                             ) : (
                               <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-white/5 text-slate-400">
-                                {b.day || "Hoy"}
+                                {b.isPaid ? (b.paymentMethod?.toUpperCase() || "PAGADO") : "PENDIENTE"}
                               </span>
                             )}
                           </div>
@@ -1756,15 +1775,30 @@ export default function AdminDashboardPage() {
                         <option value={5}>5. Entregado</option>
                       </select>
 
-                      {canViewFinancials && (
-                        <button
-                          onClick={() => handleTogglePaid(b)}
-                          className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-colors shrink-0 ${
-                            b.isPaid ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-500/20 text-amber-300"
+                      {canViewFinancials ? (
+                        <select
+                          value={b.isPaid ? (b.paymentMethod || "efectivo") : "pendiente"}
+                          onChange={(e) => {
+                            const val = e.target.value as AdminBooking["paymentMethod"];
+                            handleChangePaymentMethod(b.id, val);
+                          }}
+                          className={`px-2 py-1.5 rounded-lg text-xs font-bold border focus:outline-none shrink-0 cursor-pointer ${
+                            b.isPaid
+                              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                              : "bg-amber-500/20 text-amber-300 border-amber-500/30"
                           }`}
+                          title="Método de pago"
                         >
-                          {b.isPaid ? "Pagado" : "Pendiente"}
-                        </button>
+                          <option value="pendiente" className="bg-slate-900 text-amber-300">⏳ Pendiente</option>
+                          <option value="efectivo" className="bg-slate-900 text-emerald-300">💵 Efectivo</option>
+                          <option value="nequi" className="bg-slate-900 text-purple-300">📱 Nequi</option>
+                          <option value="daviplata" className="bg-slate-900 text-red-300">🏦 Daviplata</option>
+                          <option value="tarjeta" className="bg-slate-900 text-cyan-300">💳 Tarjeta</option>
+                        </select>
+                      ) : (
+                        <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-slate-400">
+                          {b.isPaid ? (b.paymentMethod?.toUpperCase() || "PAGADO") : "PENDIENTE"}
+                        </span>
                       )}
                     </div>
 
@@ -1823,7 +1857,7 @@ export default function AdminDashboardPage() {
                     <th className="py-3 px-4">Bahía</th>
                     <th className="py-3 px-4">Lavador / Operario</th>
                     <th className="py-3 px-4">Estado del Lavado</th>
-                    <th className="py-3 px-4">{canViewFinancials ? "Monto / Pago" : "Fecha / Turno"}</th>
+                    <th className="py-3 px-4">{canViewFinancials ? "Monto & Método de Pago" : "Fecha & Pago"}</th>
                     <th className="py-3 px-4 text-right">Acciones</th>
                   </tr>
                 </thead>
@@ -1905,19 +1939,37 @@ export default function AdminDashboardPage() {
                                   </span>
                                 ) : null}
                               </div>
-                              <button
-                                onClick={() => handleTogglePaid(b)}
-                                className={`text-[10px] font-bold uppercase underline mt-0.5 ${
-                                  b.isPaid ? "text-emerald-400" : "text-amber-400"
-                                }`}
-                              >
-                                {b.isPaid ? `Pagado (${b.paymentMethod})` : "Pendiente"}
-                              </button>
+                              <div className="mt-1">
+                                <select
+                                  value={b.isPaid ? (b.paymentMethod || "efectivo") : "pendiente"}
+                                  onChange={(e) => {
+                                    const val = e.target.value as AdminBooking["paymentMethod"];
+                                    handleChangePaymentMethod(b.id, val);
+                                  }}
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border focus:outline-none cursor-pointer ${
+                                    b.isPaid
+                                      ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                                      : "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                                  }`}
+                                  title="Seleccionar método de pago"
+                                >
+                                  <option value="pendiente" className="bg-slate-900 text-amber-300">⏳ Pendiente</option>
+                                  <option value="efectivo" className="bg-slate-900 text-emerald-300">💵 Efectivo</option>
+                                  <option value="nequi" className="bg-slate-900 text-purple-300">📱 Nequi</option>
+                                  <option value="daviplata" className="bg-slate-900 text-red-300">🏦 Daviplata</option>
+                                  <option value="tarjeta" className="bg-slate-900 text-cyan-300">💳 Tarjeta / Dataf.</option>
+                                </select>
+                              </div>
                             </>
                           ) : (
                             <>
                               <p className="font-bold text-cyan-300">{b.day || "Hoy"}</p>
                               <p className="text-[11px] text-slate-400">{b.time}</p>
+                              <span className={`inline-block mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                b.isPaid ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"
+                              }`}>
+                                {b.isPaid ? (b.paymentMethod?.toUpperCase() || "PAGADO") : "PENDIENTE"}
+                              </span>
                             </>
                           )}
                         </td>
