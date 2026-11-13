@@ -379,10 +379,10 @@ export default function CustomerReceiptModal({
             </div>
             <div className="text-[10px] text-slate-600 leading-tight">
               <p className="font-bold text-slate-900 text-[11px] mb-0.5">
-                Rastreo y Cámaras en Tiempo Real
+                Rastreo de Turno en Tiempo Real
               </p>
               <p>
-                Escanea o ingresa tu placa en nuestro portal para ver las cámaras en vivo y el avance técnico de tu vehículo.
+                Escanea o ingresa tu placa en nuestro portal para consultar el avance técnico y estado de entrega de tu vehículo.
               </p>
               <span className="font-mono text-[9px] text-cyan-700 underline truncate block mt-0.5">
                 exclusive-autowash.com?placa={(booking.licensePlate || "").toUpperCase()}

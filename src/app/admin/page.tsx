@@ -2466,7 +2466,7 @@ export default function AdminDashboardPage() {
                   <span>Catálogo de Productos Premium & Precios</span>
                 </h3>
                 <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-                  Crea nuevos productos, cambia precios o sube las fotografías reales desde tu computador o celular cuando te lleguen. Todos los cambios se actualizan al instante en la pantalla principal y en la tarjeta de Cámara en Vivo.
+                  Crea nuevos productos, cambia precios o sube las fotografías reales desde tu computador o celular cuando te lleguen. Todos los cambios se actualizan al instante en la pantalla principal y en la vitrina del spa.
                 </p>
               </div>
 

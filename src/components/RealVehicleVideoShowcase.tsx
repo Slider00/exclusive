@@ -227,132 +227,78 @@ export default function RealVehicleVideoShowcase({
       <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
 
       {/* 1. HEADER BAR: PROMOTIONAL STUDIO SHOWROOM BY DEFAULT, OR TRACKED VEHICLE CAMERA */}
+      {/* 1. HEADER BAR: SHOWROOM STUDIO DEMOSTRATIVO */}
       <div className="relative z-10 flex flex-wrap items-center justify-between gap-2.5 pb-1.5 border-b border-white/5">
         <div className="flex items-center gap-2.5 min-w-0">
-          {trackedVehicle ? (
-            <span className="relative flex h-3 w-3 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-600" />
-            </span>
-          ) : (
-            <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4 text-cyan-400" />
-            </div>
-          )}
+          <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center shrink-0">
+            <Sparkles className="w-4 h-4 text-cyan-400" />
+          </div>
 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs uppercase tracking-wider font-black text-white">
-                {trackedVehicle
-                  ? `CÁMARA BAHÍA EN VIVO: ${trackedVehicle.licensePlate}`
-                  : "EXPERIENCIA STUDIO & PROCESO DE LAVADO"}
+                EXPERIENCIA STUDIO & PROCESO DE LAVADO
               </span>
-              <span
-                className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                  trackedVehicle
-                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
-                    : "bg-cyan-500/15 border-cyan-500/30 text-cyan-300"
-                }`}
-              >
-                {trackedVehicle ? "Transmisión de tu Vehículo" : "Video Demostrativo"}
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-cyan-500/15 border-cyan-500/30 text-cyan-300">
+                Video Demostrativo
               </span>
             </div>
             <p className="text-[11px] text-slate-400 truncate">
-              {trackedVehicle ? (
-                <>
-                  Ubicación: <strong className="text-white">{trackedVehicle.bay || "Bahía de Servicio"}</strong> • Cliente:{" "}
-                  <strong className="text-cyan-300">{trackedVehicle.clientName || "Cliente"}</strong>
-                </>
-              ) : (
-                "Conoce cómo aplicamos nuestro protocolo sin contacto y química pH neutro"
-              )}
+              Conoce cómo aplicamos nuestro protocolo sin contacto y química pH neutro
             </p>
           </div>
         </div>
 
-        {/* Switcher: Vehicle Type Tabs (Default) OR Camera Switcher (When Tracking a Plate) */}
-        <div className="flex items-center gap-1 p-1 bg-black/60 border border-white/10 rounded-xl shrink-0">
-          {trackedVehicle ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setActiveCam("cam1")}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  activeCam === "cam1"
-                    ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <Radio className="w-3 h-3" />
-                <span>CAM Bahía ({trackedVehicle.bay?.split(" ")[0] || "1"})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveCam("cam2")}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  activeCam === "cam2"
-                    ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <Radio className="w-3 h-3" />
-                <span>CAM Detallado</span>
-              </button>
-
-              {onClearTracked && (
-                <button
-                  type="button"
-                  onClick={onClearTracked}
-                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/10 hover:bg-white/20 text-slate-300 transition-all ml-1 cursor-pointer"
-                  title="Volver al video promocional del estudio"
-                >
-                  Salir de Cámara
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => handleSelectVehicleTab("carro")}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  selectedShowcaseVehicle === "carro"
-                    ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <Car className="w-3.5 h-3.5" />
-                <span>Auto</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSelectVehicleTab("camioneta")}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  selectedShowcaseVehicle === "camioneta"
-                    ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <Truck className="w-3.5 h-3.5" />
-                <span>Camioneta</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSelectVehicleTab("moto")}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  selectedShowcaseVehicle === "moto"
-                    ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <Bike className="w-3.5 h-3.5" />
-                <span>Moto</span>
-              </button>
-            </>
+        {/*
+          [MODO CÁMARAS EN VIVO DE BAHÍA - TEMPORALMENTE COMENTADO HASTA INSTALACIÓN DE HARDWARE CCTV]
+          {trackedVehicle && (
+            <div className="flex items-center gap-1 p-1 bg-black/60 border border-white/10 rounded-xl shrink-0">
+              <button onClick={() => setActiveCam("cam1")}>CAM Bahía</button>
+              <button onClick={() => setActiveCam("cam2")}>CAM Detallado</button>
+            </div>
           )}
+        */}
+
+        {/* Switcher: Vehicle Type Tabs (Auto, Camioneta, Moto) */}
+        <div className="flex items-center gap-1 p-1 bg-black/60 border border-white/10 rounded-xl shrink-0">
+          <button
+            type="button"
+            onClick={() => handleSelectVehicleTab("carro")}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              selectedShowcaseVehicle === "carro"
+                ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <Car className="w-3.5 h-3.5" />
+            <span>Auto</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleSelectVehicleTab("camioneta")}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              selectedShowcaseVehicle === "camioneta"
+                ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <Truck className="w-3.5 h-3.5" />
+            <span>Camioneta</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleSelectVehicleTab("moto")}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              selectedShowcaseVehicle === "moto"
+                ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <Bike className="w-3.5 h-3.5" />
+            <span>Moto</span>
+          </button>
         </div>
       </div>
 
@@ -389,31 +335,28 @@ export default function RealVehicleVideoShowcase({
 
         {/* TOP OVERLAY */}
         <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2 pointer-events-auto z-20">
-          {trackedVehicle ? (
-            <div className="flex items-center gap-1.5 min-w-0">
-              <div className="px-2.5 py-1 rounded-lg bg-black/80 border border-white/20 backdrop-blur-md flex items-center gap-1.5 text-[10px] sm:text-[11px] font-mono text-white shadow-lg shrink-0">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-                <span className="font-bold text-red-400">REC</span>
-                <span className="text-slate-500">|</span>
-                <span className="text-cyan-300">{currentTime || "EN VIVO"}</span>
+          {/*
+            [OVERLAY CÁMARA REC CCTV - TEMPORALMENTE COMENTADO]
+            {trackedVehicle && (
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="px-2.5 py-1 rounded-lg bg-black/80 border border-white/20 backdrop-blur-md flex items-center gap-1.5 text-[10px] font-mono text-white">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  <span className="font-bold text-red-400">REC</span>
+                  <span>{trackedVehicle.licensePlate}</span>
+                </div>
               </div>
-
-              <div className="hidden xl:inline-flex px-2 py-1 rounded-lg bg-black/60 border border-white/15 text-[10px] font-mono text-slate-300 truncate">
-                {`${trackedVehicle.bay?.toUpperCase() || "BAHÍA 1"} • PLACA: ${trackedVehicle.licensePlate}`}
-              </div>
+            )}
+          */}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className="px-2.5 py-1 rounded-lg bg-black/80 border border-cyan-500/30 backdrop-blur-md flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-cyan-300 shadow-lg shrink-0">
+              <Sparkles className="w-3 h-3 text-cyan-400 shrink-0" />
+              <span>SHOWROOM STUDIO</span>
             </div>
-          ) : (
-            <div className="flex items-center gap-1.5 min-w-0">
-              <div className="px-2.5 py-1 rounded-lg bg-black/80 border border-cyan-500/30 backdrop-blur-md flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-cyan-300 shadow-lg shrink-0">
-                <Sparkles className="w-3 h-3 text-cyan-400 shrink-0" />
-                <span>SHOWROOM STUDIO</span>
-              </div>
 
-              <div className="hidden sm:inline-flex px-2.5 py-1 rounded-lg bg-black/65 border border-white/15 text-[10px] font-semibold text-slate-200 truncate">
-                {activeShowcase.badge}
-              </div>
+            <div className="hidden sm:inline-flex px-2.5 py-1 rounded-lg bg-black/65 border border-white/15 text-[10px] font-semibold text-slate-200 truncate">
+              {activeShowcase.badge}
             </div>
-          )}
+          </div>
 
           {/* Toggle between Video and Photo mode */}
           <div className="flex items-center gap-1 p-0.5 rounded-xl bg-black/85 border border-white/20 backdrop-blur-md shrink-0">
@@ -620,20 +563,12 @@ export default function RealVehicleVideoShowcase({
         </div>
       </div>
 
-      {/* 5. CUSTOMER LIVE TRACKING CALLOUT (Opens Modal with Live Bay Camera) */}
+      {/* 5. CUSTOMER LIVE TRACKING CALLOUT */}
       <div className="relative z-10 flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3 p-3.5 bg-gradient-to-r from-cyan-950/45 via-slate-900/70 to-blue-950/35 border border-cyan-500/25 rounded-2xl overflow-hidden">
         <div className="flex items-start sm:items-center gap-2.5 text-xs text-slate-200 min-w-0 flex-1">
           <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5 sm:mt-0" />
           <span className="leading-relaxed break-words">
-            {trackedVehicle ? (
-              <>
-                Transmitiendo en vivo tu vehículo{" "}
-                <strong className="text-cyan-300 font-mono">{trackedVehicle.licensePlate}</strong> en{" "}
-                <strong className="text-white">{trackedVehicle.bay || "bahía"}</strong> ({trackedVehicle.stageName}).
-              </>
-            ) : (
-              "¿Dejaste tu vehículo en nuestro local? Ingresa tu placa para ver la Cámara en Vivo de tu bahía y el avance real."
-            )}
+            ¿Tienes tu vehículo en nuestras instalaciones? Ingresa tu placa para consultar el avance técnico, bahía asignada y hora de entrega en tiempo real.
           </span>
         </div>
 
@@ -645,17 +580,7 @@ export default function RealVehicleVideoShowcase({
               className="w-full xl:w-auto px-4 py-2.5 rounded-xl text-xs font-bold bg-cyan-500/20 hover:bg-cyan-500 text-cyan-300 hover:text-slate-950 border border-cyan-400/35 transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer shadow-sm"
             >
               <Search className="w-3.5 h-3.5 shrink-0" />
-              <span>{trackedVehicle ? "Consultar otra Placa" : "Ver Cámara con mi Placa"}</span>
-            </button>
-          )}
-
-          {trackedVehicle && onClearTracked && (
-            <button
-              type="button"
-              onClick={onClearTracked}
-              className="w-full sm:w-auto px-3 py-2.5 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-slate-300 transition-all shrink-0 cursor-pointer text-center"
-            >
-              Restablecer
+              <span>Rastrear mi Vehículo</span>
             </button>
           )}
         </div>

@@ -34,3 +34,4 @@ const Employee: Model<IEmployee> =
   mongoose.models.Employee || mongoose.model<IEmployee>("Employee", EmployeeSchema);
 
 export default Employee;
+

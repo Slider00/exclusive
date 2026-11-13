@@ -351,7 +351,7 @@ export default function ProductFormModal({
 
                 <div>
                   <label className="text-[11px] uppercase font-bold text-slate-300 block mb-1">
-                    Nombre Corto (Cámara en Vivo)
+                    Nombre Corto (Vitrina / Pantalla)
                   </label>
                   <input
                     type="text"

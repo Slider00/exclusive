@@ -39,13 +39,13 @@ export default function Navbar({ onOpenTracker, onScrollToBooking }: NavbarProps
               type="button"
               onClick={onOpenTracker}
               className="flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-full hover:bg-white/[0.08] hover:text-white transition-all text-slate-300 whitespace-nowrap shrink-0 cursor-pointer"
-              title="Ingresa tu placa para ver la cámara en vivo de tu bahía"
+              title="Ingresa tu placa para consultar el avance técnico y estado de tu vehículo"
             >
               <span className="relative flex h-2 w-2 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
               </span>
-              <span>Cámara en Vivo</span>
+              <span>Rastrear Vehículo</span>
             </button>
             <a
               href="#servicios"
@@ -143,10 +143,10 @@ export default function Navbar({ onOpenTracker, onScrollToBooking }: NavbarProps
               className="flex items-center gap-2 px-3.5 py-3 rounded-xl text-sm font-medium text-slate-200 hover:text-white hover:bg-white/[0.06] active:bg-cyan-500/10 transition-colors touch-manipulation text-left cursor-pointer"
             >
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
               </span>
-              <span>Cámara en Vivo (Consultar Placa)</span>
+              <span>Rastrear Vehículo (Consultar Placa)</span>
             </button>
             <a
               href="#servicios"

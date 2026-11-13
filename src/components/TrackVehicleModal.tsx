@@ -5,7 +5,7 @@ import Image from "next/image";
 import { 
   Search, X, CheckCircle2, Clock, ShieldCheck, Car, Sparkles, 
   AlertCircle, Receipt, RefreshCw, MessageCircle, Check, ArrowRight,
-  Video, Maximize2
+  Video, Maximize2, Activity, UserCheck, Wrench, Calendar, MapPin
 } from "lucide-react";
 import CustomerReceiptModal from "./admin/CustomerReceiptModal";
 import { BUSINESS_CONFIG, formatCurrency } from "@/data/servicesData";
@@ -257,80 +257,147 @@ export default function TrackVehicleModal({
               </div>
             </div>
 
-            {/* Live Bay Camera Player for Vehicle */}
-            <div className="rounded-2xl overflow-hidden bg-slate-950 border border-cyan-500/30 shadow-xl relative group">
-              <div className="p-3 bg-black/60 border-b border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                  <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                    <Video className="w-3.5 h-3.5 text-cyan-400" />
-                    Cámara de Bahía en Vivo
+            {/*
+              ============================================================
+              [MÓDULO CÁMARAS EN VIVO - CCTV TEMPORALMENTE DESACTIVADO]
+              Descomentar el siguiente bloque cuando las cámaras IP de las bahías estén conectadas
+              ============================================================
+              <div className="rounded-2xl overflow-hidden bg-slate-950 border border-cyan-500/30 shadow-xl relative group">
+                <div className="p-3 bg-black/60 border-b border-white/10 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                    <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <Video className="w-3.5 h-3.5 text-cyan-400" />
+                      Cámara de Bahía en Vivo
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                    {searchResult.bay || "Bahía 1 (Lavado)"}
                   </span>
                 </div>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                  {searchResult.bay || "Bahía 1 (Lavado)"}
+                <div className="relative aspect-video w-full overflow-hidden bg-black">
+                  <video
+                    src={
+                      searchResult.vehicleType === "moto"
+                        ? "/videos/wash_moto.mp4?v=2"
+                        : searchResult.vehicleType === "camioneta"
+                        ? "/videos/wash_camioneta.mp4?v=2"
+                        : "/videos/wash_carro.mp4?v=2"
+                    }
+                    poster={
+                      searchResult.vehicleType === "moto"
+                        ? "/images/wash_moto.jpg"
+                        : searchResult.vehicleType === "camioneta"
+                        ? "/images/wash_camioneta.jpg"
+                        : "/images/wash_carro.jpg"
+                    }
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none">
+                    <div className="px-2 py-0.5 rounded bg-black/80 text-[10px] font-mono text-red-400 border border-red-500/30 flex items-center gap-1.5 shadow">
+                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                      REC • {searchResult.licensePlate}
+                    </div>
+                    <div className="px-2 py-0.5 rounded bg-black/80 text-[10px] font-mono text-cyan-300 border border-white/15 shadow">
+                      {searchResult.stageName}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            */}
+
+            {/* VISTA ORGANIZADA: FICHA TÉCNICA Y MONITOREO DE BAHÍA */}
+            <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-[#0c1424] via-[#090d16] to-black border border-cyan-500/30 shadow-2xl p-4 sm:p-5 relative">
+              {/* Glow accent */}
+              <div className="absolute top-0 right-0 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="flex items-center justify-between pb-3.5 border-b border-white/10 relative z-10">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center">
+                    <Activity className="w-4 h-4 animate-pulse" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-black text-white tracking-wide uppercase">
+                      Monitoreo Técnico de Bahía
+                    </h4>
+                    <p className="text-[11px] text-slate-400">
+                      Supervisión de proceso en tiempo real
+                    </p>
+                  </div>
+                </div>
+
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-sm">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  Bahía Activa
                 </span>
               </div>
 
-              <div className="relative aspect-video w-full overflow-hidden bg-black">
-                <video
-                  src={
-                    searchResult.vehicleType === "moto"
-                      ? "/videos/wash_moto.mp4?v=2"
-                      : searchResult.vehicleType === "camioneta"
-                      ? "/videos/wash_camioneta.mp4?v=2"
-                      : "/videos/wash_carro.mp4?v=2"
-                  }
-                  poster={
-                    searchResult.vehicleType === "moto"
-                      ? "/images/wash_moto.jpg"
-                      : searchResult.vehicleType === "camioneta"
-                      ? "/images/wash_camioneta.jpg"
-                      : "/images/wash_carro.jpg"
-                  }
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
-
-                {/* CCTV Overlays */}
-                <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none">
-                  <div className="px-2 py-0.5 rounded bg-black/80 text-[10px] font-mono text-red-400 border border-red-500/30 flex items-center gap-1.5 shadow">
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                    REC • {searchResult.licensePlate}
+              {/* Technical details grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 my-3.5 relative z-10">
+                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+                    <MapPin className="w-4 h-4" />
                   </div>
-                  <div className="px-2 py-0.5 rounded bg-black/80 text-[10px] font-mono text-cyan-300 border border-white/15 shadow">
-                    {searchResult.stageName}
+                  <div className="min-w-0">
+                    <span className="text-[10px] text-slate-400 block uppercase font-semibold">Ubicación</span>
+                    <p className="text-xs font-bold text-white truncate">{searchResult.bay || "Bahía 1 (Lavado)"}</p>
                   </div>
                 </div>
 
-                <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none">
-                  <span className="text-[10px] font-mono text-white/90 bg-black/75 px-2 py-0.5 rounded">
-                    CCTV EXCLUSIVE • MEDELLÍN
-                  </span>
-                  <span className="text-[10px] font-mono text-emerald-400 bg-black/75 px-2 py-0.5 rounded flex items-center gap-1">
-                    ● TRANSMISIÓN DIRECTA
-                  </span>
+                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+                    <UserCheck className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] text-slate-400 block uppercase font-semibold">Operario a Cargo</span>
+                    <p className="text-xs font-bold text-cyan-300 truncate">
+                      {searchResult.assignedEmployee || "Equipo Técnico Exclusive"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] text-slate-400 block uppercase font-semibold">Turno</span>
+                    <p className="text-xs font-bold text-white truncate">
+                      {searchResult.day || "Hoy"} • {searchResult.time || "En curso"}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="p-2.5 bg-black/70 border-t border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                <p className="text-[11px] text-slate-300 truncate">
-                  Monitoreando en tiempo real: <strong className="text-white">{searchResult.licensePlate}</strong> en {searchResult.bay || "bahía"}
-                </p>
-                {onTuneMainCamera && (
-                  <button
-                    type="button"
-                    onClick={() => onTuneMainCamera(searchResult)}
-                    className="w-full sm:w-auto px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500/25 to-blue-500/25 hover:from-cyan-500 hover:to-blue-500 text-cyan-300 hover:text-slate-950 border border-cyan-400/40 text-[11px] font-bold uppercase transition-all shrink-0 cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <Maximize2 className="w-3.5 h-3.5" />
-                    <span>Ver en Cámara del Local</span>
-                  </button>
-                )}
+              {/* Current Active Stage Highlight Banner */}
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-cyan-950/60 via-blue-950/40 to-slate-900/60 border border-cyan-500/30 text-xs text-white flex items-start gap-3 relative z-10">
+                <div className="w-8 h-8 rounded-lg bg-cyan-400 text-slate-950 flex items-center justify-center font-black text-xs shrink-0 shadow-md shadow-cyan-400/20">
+                  {searchResult.stage}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-black text-cyan-300 uppercase tracking-wide">
+                      {searchResult.stageName}
+                    </span>
+                    <span className="text-[10px] font-mono text-cyan-400/80">
+                      Paso {searchResult.stage} de 5
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
+                    {STAGES_LIST.find((s) => s.id === searchResult.stage)?.desc ||
+                      "Trabajo técnico especializado en ejecución."}
+                  </p>
+                </div>
               </div>
+
+              {/* Quality Protocol note */}
+              <p className="text-[10px] text-slate-500 mt-2.5 text-center relative z-10">
+                Protocolo sin fricción • Química pH Neutro • Microfibras de 600 GSM
+              </p>
             </div>
 
             {/* Stepper Timeline (Real 5 stages from STAGE_CONFIG) */}

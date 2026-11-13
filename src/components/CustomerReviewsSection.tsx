@@ -21,7 +21,7 @@ export default function CustomerReviewsSection() {
       service: "Lavado Full + Desinfección Ozono",
       rating: 5,
       date: "Hace 1 semana",
-      text: "Poder agendar desde el celular en 30 segundos sin registros fastidiosos y ver cómo avanza el lavado por la cámara en vivo es de otro planeta. Además el café de cortesía en el lounge es delicioso.",
+      text: "Poder agendar desde el celular en 30 segundos sin registros fastidiosos y ver cómo avanza el lavado en tiempo real es de otro planeta. Además el café de cortesía en el lounge es delicioso.",
     },
     {
       name: "Andrés Camilo Duarte",
