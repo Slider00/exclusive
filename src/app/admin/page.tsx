@@ -230,6 +230,15 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (isAuthenticated) {
       refreshData();
+      const interval = setInterval(() => {
+        syncWithBackend()
+          .then(({ bookings: freshB, expenses: freshE }) => {
+            setBookings(freshB);
+            setExpenses(freshE);
+          })
+          .catch(() => {});
+      }, 12000);
+      return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
 
@@ -327,18 +336,6 @@ export default function AdminDashboardPage() {
     setIsAuthenticated(false);
     setCurrentAdmin(null);
     setPasswordInput("");
-    setAuthError("");
-  };
-
-  const handleFillDemoAdmin = () => {
-    setUsernameInput("admin");
-    setPasswordInput("Exclusive2026*");
-    setAuthError("");
-  };
-
-  const handleFillDemoOperator = () => {
-    setUsernameInput("operador");
-    setPasswordInput("Operador2026*");
     setAuthError("");
   };
 
@@ -746,40 +743,6 @@ export default function AdminDashboardPage() {
               <Unlock className="w-4 h-4" />
               <span>{lockoutSeconds > 0 ? `Bloqueado (${lockoutSeconds}s)` : "Iniciar Sesión"}</span>
             </button>
-
-            {/* Demo Credentials Quick Pills by Role */}
-            <div className="pt-2 space-y-2">
-              <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400 block text-center">
-                Acceso Rápido por Perfil:
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={handleFillDemoAdmin}
-                  className="p-2.5 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/30 text-left transition-all group"
-                  title="Administrador con acceso a finanzas, caja y dinero"
-                >
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-[11px] font-bold text-cyan-300">👑 Administrador</span>
-                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold">Finanzas</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 block font-mono">admin • Exclusive2026*</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleFillDemoOperator}
-                  className="p-2.5 rounded-xl bg-purple-950/30 hover:bg-purple-900/40 border border-purple-500/30 text-left transition-all group"
-                  title="Operador de taller y citas, sin acceso a dinero ni valores"
-                >
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-[11px] font-bold text-purple-300">🛠️ Operador / Citas</span>
-                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono font-bold">Sin Dinero</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 block font-mono">operador • Operador2026*</span>
-                </button>
-              </div>
-            </div>
 
             {/* Security Guarantee & Back Link */}
             <div className="pt-2 flex flex-col items-center gap-3">
@@ -2508,7 +2471,14 @@ export default function AdminDashboardPage() {
       <ExpressWalkInModal
         isOpen={isWalkInOpen}
         onClose={() => setIsWalkInOpen(false)}
-        onBookingCreated={() => refreshData()}
+        onBookingCreated={(newB) => {
+          setBookings((prev) => [
+            newB,
+            ...prev.filter((b) => b.id !== newB.id && b.code !== newB.code),
+          ]);
+          setIsWalkInOpen(false);
+          refreshData();
+        }}
         canViewFinancials={canViewFinancials}
       />
 

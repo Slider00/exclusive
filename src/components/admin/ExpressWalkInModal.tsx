@@ -27,6 +27,8 @@ import {
   Smartphone,
   Layers,
   UserCheck,
+  Calendar,
+  Clock,
 } from "lucide-react";
 
 interface ExpressWalkInModalProps {
@@ -42,6 +44,10 @@ export default function ExpressWalkInModal({
   onBookingCreated,
   canViewFinancials = true,
 }: ExpressWalkInModalProps) {
+  const [entryMode, setEntryMode] = useState<"walkin" | "scheduled">("walkin");
+  const [customDate, setCustomDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [customTime, setCustomTime] = useState("10:00 AM");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [licensePlate, setLicensePlate] = useState("");
   const [vehicleType, setVehicleType] = useState<VehicleType>("carro");
   const [selectedServiceId, setSelectedServiceId] = useState("lavada-full");
@@ -98,42 +104,56 @@ export default function ExpressWalkInModal({
     const finalDiscount = applyPromoNow ? Math.round(basePrice * 0.15) : 0;
     const finalPrice = Math.max(0, basePrice - finalDiscount);
 
-    const created = saveNewBooking({
-      licensePlate: cleanPlate,
-      vehicleType,
-      serviceId: activeService.id,
-      serviceName: activeService.name,
-      originalPrice: basePrice,
-      discountPercent: applyPromoNow ? 15 : 0,
-      promoCode: applyPromoNow ? "INAUGURACION15" : "",
-      price: finalPrice,
-      day: "Hoy",
-      time: new Date().toLocaleTimeString("es-CO", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      }),
-      clientName: clientName.trim(),
-      clientPhone: clientPhone.trim() || "No registrado",
-      clientNotes: applyPromoNow
-        ? `${clientNotes.trim() ? clientNotes.trim() + " • " : ""}[Bono Inauguración 15% OFF]`
-        : clientNotes.trim() || undefined,
-      isWalkIn: true,
-      bay,
-      stage,
-      paymentMethod,
-      isPaid,
-      assignedEmployee: assignedEmployee.trim() || undefined,
-    });
+    const isWalkIn = entryMode === "walkin";
+    const appointmentDate = isWalkIn ? new Date().toISOString().slice(0, 10) : customDate;
+    const timeValue = isWalkIn
+      ? new Date().toLocaleTimeString("es-CO", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        })
+      : customTime;
+    const dayLabel = isWalkIn ? "Hoy" : customDate;
 
-    onBookingCreated(created);
-    onClose();
+    setIsSubmitting(true);
 
-    // Reset form
-    setLicensePlate("");
-    setClientName("");
-    setClientPhone("");
-    setClientNotes("");
+    try {
+      const created = saveNewBooking({
+        licensePlate: cleanPlate,
+        vehicleType,
+        serviceId: activeService.id,
+        serviceName: activeService.name,
+        originalPrice: basePrice,
+        discountPercent: applyPromoNow ? 15 : 0,
+        promoCode: applyPromoNow ? "INAUGURACION15" : "",
+        price: finalPrice,
+        day: dayLabel,
+        appointmentDate,
+        time: timeValue,
+        clientName: clientName.trim(),
+        clientPhone: clientPhone.trim() || "No registrado",
+        clientNotes: applyPromoNow
+          ? `${clientNotes.trim() ? clientNotes.trim() + " • " : ""}[Bono Inauguración 15% OFF]`
+          : clientNotes.trim() || undefined,
+        isWalkIn,
+        bay,
+        stage: isWalkIn ? stage : 1,
+        paymentMethod,
+        isPaid,
+        assignedEmployee: assignedEmployee.trim() || undefined,
+      });
+
+      onBookingCreated(created);
+      onClose();
+
+      // Reset form
+      setLicensePlate("");
+      setClientName("");
+      setClientPhone("");
+      setClientNotes("");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -170,6 +190,73 @@ export default function ExpressWalkInModal({
           <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
+          </div>
+        )}
+
+        {/* Selector de Modo: Ingreso Inmediato vs Agendar Cita */}
+        <div className="mt-4 grid grid-cols-2 gap-2 p-1 rounded-xl bg-white/[0.04] border border-white/10">
+          <button
+            type="button"
+            onClick={() => {
+              setEntryMode("walkin");
+              setStage(2);
+            }}
+            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              entryMode === "walkin"
+                ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-black shadow-md"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Vehículo en Taller (Ahora)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setEntryMode("scheduled");
+              setStage(1);
+            }}
+            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              entryMode === "scheduled"
+                ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-black shadow-md"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <Calendar className="w-4 h-4" />
+            <span>Agendar Cita Previa</span>
+          </button>
+        </div>
+
+        {entryMode === "scheduled" && (
+          <div className="mt-3 p-3.5 rounded-2xl bg-cyan-950/30 border border-cyan-500/30 grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in">
+            <div>
+              <label className="text-xs uppercase font-bold text-cyan-300 flex items-center gap-1.5 mb-1.5">
+                <Calendar className="w-3.5 h-3.5" />
+                Fecha de la Cita *
+              </label>
+              <input
+                type="date"
+                required
+                value={customDate}
+                onChange={(e) => setCustomDate(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs font-mono focus:outline-none focus:border-cyan-400"
+              />
+            </div>
+            <div>
+              <label className="text-xs uppercase font-bold text-cyan-300 flex items-center gap-1.5 mb-1.5">
+                <Clock className="w-3.5 h-3.5" />
+                Hora de la Cita *
+              </label>
+              <input
+                type="text"
+                placeholder="Ej: 10:00 AM, 02:30 PM"
+                required
+                value={customTime}
+                onChange={(e) => setCustomTime(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs font-mono focus:outline-none focus:border-cyan-400"
+              />
+            </div>
           </div>
         )}
 

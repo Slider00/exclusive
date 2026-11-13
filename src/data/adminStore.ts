@@ -570,7 +570,22 @@ export async function syncWithBackend(): Promise<{ bookings: AdminBooking[]; exp
 
     let bookings = getStoredBookings();
     if (dataB.success && Array.isArray(dataB.bookings)) {
-      bookings = dataB.bookings;
+      const serverMap = new Map<string, any>();
+      for (const sb of dataB.bookings) {
+        if (sb.code) serverMap.set(sb.code, sb);
+        if (sb.id) serverMap.set(sb.id, sb);
+      }
+
+      // Preserve recent locally saved bookings (created in the last 60 seconds)
+      // that may not yet be reflected in the MongoDB query due to network latency
+      const recentLocal = bookings.filter((localB) => {
+        if (serverMap.has(localB.code) || serverMap.has(localB.id)) return false;
+        const createdMs = new Date(localB.createdAt || 0).getTime();
+        const ageMs = Date.now() - createdMs;
+        return ageMs < 60000;
+      });
+
+      bookings = [...recentLocal, ...dataB.bookings];
       if (typeof window !== "undefined") {
         localStorage.setItem(STORAGE_KEY_BOOKINGS, JSON.stringify(bookings));
       }
@@ -578,7 +593,18 @@ export async function syncWithBackend(): Promise<{ bookings: AdminBooking[]; exp
 
     let expenses = getStoredExpenses();
     if (dataE.success && Array.isArray(dataE.expenses)) {
-      expenses = dataE.expenses;
+      const serverMap = new Map<string, any>();
+      for (const se of dataE.expenses) {
+        if (se.id) serverMap.set(se.id, se);
+      }
+      const recentLocal = expenses.filter((localE) => {
+        if (serverMap.has(localE.id)) return false;
+        const createdMs = new Date(localE.createdAt || 0).getTime();
+        const ageMs = Date.now() - createdMs;
+        return ageMs < 60000;
+      });
+
+      expenses = [...recentLocal, ...dataE.expenses];
       if (typeof window !== "undefined") {
         localStorage.setItem(STORAGE_KEY_EXPENSES, JSON.stringify(expenses));
       }
