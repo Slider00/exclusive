@@ -11,6 +11,7 @@ export interface IBooking {
   promoCode?: string;
   price: number;
   day: string;
+  appointmentDate?: string;
   time: string;
   clientName: string;
   clientPhone: string;
@@ -81,6 +82,11 @@ const BookingSchema = new Schema<IBooking>(
       type: String,
       required: true,
       default: "Hoy",
+    },
+    appointmentDate: {
+      type: String,
+      default: "",
+      index: true,
     },
     time: {
       type: String,

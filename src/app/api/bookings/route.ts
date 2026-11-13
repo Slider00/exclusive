@@ -1,23 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
 import { connectToDatabase, isMongoConfigured } from "@/lib/mongodb";
 import Booking from "@/models/Booking";
 import Expense from "@/models/Expense";
-
-const CLEAN_START_MARKER = path.join(process.cwd(), ".clean_db_v1_done");
-
-async function ensureMongoCleanStartOnce() {
-  try {
-    if (!fs.existsSync(CLEAN_START_MARKER)) {
-      await Booking.deleteMany({});
-      await Expense.deleteMany({});
-      fs.writeFileSync(CLEAN_START_MARKER, new Date().toISOString(), "utf8");
-    }
-  } catch (e) {
-    // ignore
-  }
-}
 
 // GET /api/bookings - Fetch all bookings
 export async function GET() {
@@ -26,7 +10,7 @@ export async function GET() {
       return NextResponse.json({
         success: false,
         fallback: true,
-        message: "MONGODB_URI no configurado en .env.local",
+        message: "MONGODB_URI no configurado en Vercel Environment Variables",
         bookings: [],
       });
     }
@@ -40,8 +24,6 @@ export async function GET() {
         bookings: [],
       });
     }
-
-    await ensureMongoCleanStartOnce();
 
     const bookings = await Booking.find().sort({ createdAt: -1 }).lean();
 
@@ -57,6 +39,7 @@ export async function GET() {
       promoCode: b.promoCode || "",
       price: b.price,
       day: b.day,
+      appointmentDate: b.appointmentDate || "",
       time: b.time,
       clientName: b.clientName,
       clientPhone: b.clientPhone,
@@ -140,6 +123,7 @@ export async function POST(req: NextRequest) {
       promoCode,
       price: finalPrice,
       day: data.day || "Hoy",
+      appointmentDate: data.appointmentDate || "",
       time: data.time || "10:00 AM",
       clientName: data.clientName || "Cliente",
       clientPhone: data.clientPhone || "3100000000",
@@ -166,6 +150,7 @@ export async function POST(req: NextRequest) {
         promoCode: newBooking.promoCode,
         price: newBooking.price,
         day: newBooking.day,
+        appointmentDate: newBooking.appointmentDate,
         time: newBooking.time,
         clientName: newBooking.clientName,
         clientPhone: newBooking.clientPhone,
