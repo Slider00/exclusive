@@ -38,6 +38,99 @@ export const DEFAULT_EMPLOYEES = [
   "Sebastián Castro",
 ];
 
+export const STORAGE_KEY_EMPLOYEES = "exclusive_employees_list";
+
+export function getStoredEmployees(): string[] {
+  if (typeof window === "undefined") return DEFAULT_EMPLOYEES;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_EMPLOYEES);
+    if (!raw) return DEFAULT_EMPLOYEES;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed.map((e) => String(e).trim()).filter(Boolean);
+    }
+  } catch (err) {
+    console.error("Error reading stored employees:", err);
+  }
+  return DEFAULT_EMPLOYEES;
+}
+
+export function saveStoredEmployees(list: string[]): string[] {
+  const cleaned = Array.from(new Set(list.map((e) => e.trim()).filter(Boolean)));
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(STORAGE_KEY_EMPLOYEES, JSON.stringify(cleaned));
+    } catch (err) {
+      console.error("Error saving stored employees:", err);
+    }
+  }
+  return cleaned;
+}
+
+export async function syncEmployeesWithBackend(): Promise<string[]> {
+  try {
+    const res = await fetch("/api/employees", { cache: "no-store" });
+    if (!res.ok) return getStoredEmployees();
+    const data = await res.json();
+    if (data.success && Array.isArray(data.employees) && data.employees.length > 0) {
+      return saveStoredEmployees(data.employees);
+    }
+  } catch (err) {
+    console.warn("Could not sync employees with backend:", err);
+  }
+  return getStoredEmployees();
+}
+
+export async function addEmployeeBackend(name: string): Promise<string[]> {
+  const clean = name.trim();
+  if (!clean) return getStoredEmployees();
+  const current = getStoredEmployees();
+  const optimistic = Array.from(new Set([...current, clean]));
+  saveStoredEmployees(optimistic);
+
+  try {
+    const res = await fetch("/api/employees", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: clean }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.employees)) {
+        return saveStoredEmployees(data.employees);
+      }
+    }
+  } catch (err) {
+    console.error("Error adding employee:", err);
+  }
+  return optimistic;
+}
+
+export async function removeEmployeeBackend(name: string): Promise<string[]> {
+  const clean = name.trim();
+  const current = getStoredEmployees();
+  const optimistic = current.filter((e) => e !== clean);
+  saveStoredEmployees(optimistic);
+
+  try {
+    const res = await fetch("/api/employees", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: clean }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.employees)) {
+        return saveStoredEmployees(data.employees);
+      }
+    }
+  } catch (err) {
+    console.error("Error removing employee:", err);
+  }
+  return optimistic;
+}
+
+
 export interface ExpenseItem {
   id: string;
   description: string;

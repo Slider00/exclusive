@@ -9,6 +9,8 @@ import {
   ExpenseItem,
   STAGE_CONFIG,
   DEFAULT_EMPLOYEES,
+  getStoredEmployees,
+  syncEmployeesWithBackend,
   getStoredBookings,
   updateBookingStage,
   updateBookingEmployee,
@@ -39,6 +41,7 @@ import AddExpenseModal from "@/components/admin/AddExpenseModal";
 import CustomerReceiptModal from "@/components/admin/CustomerReceiptModal";
 import ChangePasswordModal from "@/components/admin/ChangePasswordModal";
 import ProductFormModal from "@/components/admin/ProductFormModal";
+import ManageEmployeesModal from "@/components/admin/ManageEmployeesModal";
 import {
   Car,
   Truck,
@@ -68,6 +71,7 @@ import {
   Layers,
   Phone,
   User,
+  Users,
   Radio,
   Eye,
   EyeOff,
@@ -111,6 +115,8 @@ export default function AdminDashboardPage() {
   // Modals
   const [isWalkInOpen, setIsWalkInOpen] = useState<boolean>(false);
   const [isExpenseOpen, setIsExpenseOpen] = useState<boolean>(false);
+  const [isEmployeesModalOpen, setIsEmployeesModalOpen] = useState<boolean>(false);
+  const [employeesList, setEmployeesList] = useState<string[]>(DEFAULT_EMPLOYEES);
   const [isProductModalOpen, setIsProductModalOpen] = useState<boolean>(false);
   const [editingProduct, setEditingProduct] = useState<DetailingProduct | null>(null);
   const [selectedReceiptBooking, setSelectedReceiptBooking] = useState<AdminBooking | null>(null);
@@ -204,9 +210,11 @@ export default function AdminDashboardPage() {
     const b = getStoredBookings();
     const e = getStoredExpenses();
     const p = getStoredProducts();
+    const emp = getStoredEmployees();
     setBookings(b);
     setExpenses(e);
     setProducts(p);
+    setEmployeesList(emp);
     setIsPromoEnabledState(getPromoEnabled());
     setSlotCapacityState(getSlotCapacity());
     setAgendaSlots(getSlotsForDate(agendaDate));
@@ -228,6 +236,10 @@ export default function AdminDashboardPage() {
 
     syncProductsWithBackend()
       .then((freshP) => setProducts(freshP))
+      .catch(() => {});
+
+    syncEmployeesWithBackend()
+      .then((freshEmp) => setEmployeesList(freshEmp))
       .catch(() => {});
   };
 
@@ -887,6 +899,16 @@ export default function AdminDashboardPage() {
                   <Receipt className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                   <span>- Gasto Caja</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsEmployeesModalOpen(true)}
+                  className="h-10 px-3 rounded-xl text-xs font-bold bg-white/5 hover:bg-white/10 text-cyan-300 border border-cyan-500/25 hover:border-cyan-400/40 transition-all inline-flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer"
+                  title="Gestionar lista de lavadores y operarios"
+                >
+                  <Users className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                  <span>👥 Lavadores ({employeesList.length})</span>
+                </button>
               </>
             )}
 
@@ -955,19 +977,33 @@ export default function AdminDashboardPage() {
                     </button>
 
                     {canViewFinancials && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsProfileMenuOpen(false);
-                          setEditingProduct(null);
-                          setActiveTab("productos");
-                          setIsProductModalOpen(true);
-                        }}
-                        className="w-full px-3 py-2 rounded-xl text-xs font-medium text-slate-200 hover:text-white hover:bg-white/[0.06] flex items-center gap-2.5 transition-colors cursor-pointer"
-                      >
-                        <Upload className="w-3.5 h-3.5 text-cyan-400" />
-                        <span>Subir Nuevo Producto</span>
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsProfileMenuOpen(false);
+                            setIsEmployeesModalOpen(true);
+                          }}
+                          className="w-full px-3 py-2 rounded-xl text-xs font-medium text-slate-200 hover:text-white hover:bg-white/[0.06] flex items-center gap-2.5 transition-colors cursor-pointer"
+                        >
+                          <Users className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>Gestionar Lavadores ({employeesList.length})</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsProfileMenuOpen(false);
+                            setEditingProduct(null);
+                            setActiveTab("productos");
+                            setIsProductModalOpen(true);
+                          }}
+                          className="w-full px-3 py-2 rounded-xl text-xs font-medium text-slate-200 hover:text-white hover:bg-white/[0.06] flex items-center gap-2.5 transition-colors cursor-pointer"
+                        >
+                          <Upload className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>Subir Nuevo Producto</span>
+                        </button>
+                      </>
                     )}
 
                     <button
@@ -1479,12 +1515,12 @@ export default function AdminDashboardPage() {
                               className="bg-transparent text-cyan-200 font-bold focus:outline-none cursor-pointer w-full truncate text-[11px]"
                             >
                               <option value="" className="bg-slate-900 text-slate-400">Sin asignar</option>
-                              {DEFAULT_EMPLOYEES.map((emp) => (
+                              {employeesList.map((emp) => (
                                 <option key={emp} value={emp} className="bg-slate-900 text-white">
                                   {emp}
                                 </option>
                               ))}
-                              {b.assignedEmployee && !DEFAULT_EMPLOYEES.includes(b.assignedEmployee) && (
+                              {b.assignedEmployee && !employeesList.includes(b.assignedEmployee) && (
                                 <option value={b.assignedEmployee} className="bg-slate-900 text-white">
                                   {b.assignedEmployee}
                                 </option>
@@ -1695,10 +1731,10 @@ export default function AdminDashboardPage() {
                         className="bg-transparent text-cyan-200 text-xs font-bold focus:outline-none flex-1 truncate"
                       >
                         <option value="" className="bg-slate-900 text-slate-400">Sin asignar</option>
-                        {DEFAULT_EMPLOYEES.map((emp) => (
+                        {employeesList.map((emp) => (
                           <option key={emp} value={emp} className="bg-slate-900 text-white">{emp}</option>
                         ))}
-                        {b.assignedEmployee && !DEFAULT_EMPLOYEES.includes(b.assignedEmployee) && (
+                        {b.assignedEmployee && !employeesList.includes(b.assignedEmployee) && (
                           <option value={b.assignedEmployee} className="bg-slate-900 text-white">{b.assignedEmployee}</option>
                         )}
                       </select>
@@ -1832,10 +1868,10 @@ export default function AdminDashboardPage() {
                               className="bg-black/50 text-cyan-200 text-xs font-semibold px-2 py-1 rounded-lg border border-white/15 focus:outline-none focus:border-cyan-400 cursor-pointer"
                             >
                               <option value="" className="bg-slate-900 text-slate-400">Sin asignar</option>
-                              {DEFAULT_EMPLOYEES.map((emp) => (
+                              {employeesList.map((emp) => (
                                 <option key={emp} value={emp} className="bg-slate-900 text-white">{emp}</option>
                               ))}
-                              {b.assignedEmployee && !DEFAULT_EMPLOYEES.includes(b.assignedEmployee) && (
+                              {b.assignedEmployee && !employeesList.includes(b.assignedEmployee) && (
                                 <option value={b.assignedEmployee} className="bg-slate-900 text-white">{b.assignedEmployee}</option>
                               )}
                             </select>
@@ -2563,7 +2599,18 @@ export default function AdminDashboardPage() {
           refreshData();
         }}
         canViewFinancials={canViewFinancials}
+        employees={employeesList}
       />
+
+      {/* MODAL: GESTIÓN DE LAVADORES / PERSONAL */}
+      {canViewFinancials && (
+        <ManageEmployeesModal
+          isOpen={isEmployeesModalOpen}
+          onClose={() => setIsEmployeesModalOpen(false)}
+          employees={employeesList}
+          onEmployeesUpdated={(newList) => setEmployeesList(newList)}
+        />
+      )}
 
       {/* MODAL: ADD EXPENSE */}
       <AddExpenseModal

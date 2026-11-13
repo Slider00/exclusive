@@ -6,6 +6,7 @@ import {
   AdminBooking,
   saveNewBooking,
   DEFAULT_EMPLOYEES,
+  getStoredEmployees,
   getPromoEnabled,
   hasPlateUsedPromo,
   normalizePlate,
@@ -36,6 +37,7 @@ interface ExpressWalkInModalProps {
   onClose: () => void;
   onBookingCreated: (booking: AdminBooking) => void;
   canViewFinancials?: boolean;
+  employees?: string[];
 }
 
 export default function ExpressWalkInModal({
@@ -43,7 +45,9 @@ export default function ExpressWalkInModal({
   onClose,
   onBookingCreated,
   canViewFinancials = true,
+  employees,
 }: ExpressWalkInModalProps) {
+  const currentEmployees = employees && employees.length > 0 ? employees : getStoredEmployees();
   const [entryMode, setEntryMode] = useState<"walkin" | "scheduled">("walkin");
   const [customDate, setCustomDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [customTime, setCustomTime] = useState("10:00 AM");
@@ -54,7 +58,9 @@ export default function ExpressWalkInModal({
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [bay, setBay] = useState("Bahía 1 (Lavado)");
-  const [assignedEmployee, setAssignedEmployee] = useState(DEFAULT_EMPLOYEES[0] || "Carlos Moreno");
+  const [assignedEmployee, setAssignedEmployee] = useState(
+    currentEmployees[0] || "Carlos Moreno"
+  );
   const [stage, setStage] = useState<1 | 2>(2); // 2: In wash immediately by default
   const [paymentMethod, setPaymentMethod] = useState<AdminBooking["paymentMethod"]>("pendiente");
   const [isPaid, setIsPaid] = useState(false);
@@ -455,7 +461,7 @@ export default function ExpressWalkInModal({
                 className="w-full px-3 py-2.5 rounded-xl bg-black/50 border border-cyan-500/30 text-white text-sm focus:outline-none focus:border-cyan-400 placeholder:text-slate-500"
               />
               <datalist id="employee-suggestions">
-                {DEFAULT_EMPLOYEES.map((emp) => (
+                {currentEmployees.map((emp) => (
                   <option key={emp} value={emp} />
                 ))}
               </datalist>
