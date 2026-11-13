@@ -12,31 +12,38 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://browser-compatible-treo-expansion.trycloudflare.com";
+const siteUrl = "https://www.exclusivespavehiculos.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "EXCLUSIVE Spa Vehículos | Detallado de Autos y Motos",
-  description: "Detallado profesional y Spa de Motos y Autos. Lavado técnico Snow Foam pH neutro, desengrasado y acabado espejo. Agenda tu cita en 30 segundos sin registros.",
+  title: "EXCLUSIVE Spa Vehículos | Detallado de Autos y Motos en Medellín",
+  description:
+    "Spa y detallado automotriz profesional en Belén Granadas, Medellín. Lavado técnico Snow Foam pH neutro, desengrasado de motor, secado con microfibra y protección cerámica. Agenda tu turno sin registros.",
   keywords: [
     "exclusive spa vehiculos",
-    "exclusive detallado",
-    "spa de motos y autos",
-    "lavadero itagui",
-    "lavado de motos medellin",
-    "detailing automotriz",
-    "agendar cita lavado",
-    "snow foam ph neutro",
-    "polichado ceramico"
+    "exclusive spa",
+    "lavadero de carros medellin",
+    "spa de motos medellin",
+    "detailing medellin",
+    "lavado de autos belen granadas",
+    "lavadero belen medellin",
+    "lavado snow foam medellin",
+    "desengrasado de motor medellin",
+    "polichado ceramico medellin",
+    "citas lavadero medellin"
   ],
+  alternates: {
+    canonical: siteUrl,
+  },
   icons: {
     icon: "/images/logo-icon.png",
     shortcut: "/images/logo-icon.png",
     apple: "/images/logo-icon.png",
   },
   openGraph: {
-    title: "EXCLUSIVE Spa Vehículos | Detallado de Autos y Motos",
-    description: "Detallado profesional y Spa de Motos y Autos. Lavado técnico Snow Foam pH neutro, desengrasado y acabado espejo. Agenda tu cita en 30 segundos.",
+    title: "EXCLUSIVE Spa Vehículos | Detallado de Autos y Motos en Medellín",
+    description:
+      "Spa y detallado automotriz profesional en Belén Granadas, Medellín. Lavado técnico Snow Foam pH neutro, desengrasado de motor y protección cerámica.",
     url: siteUrl,
     siteName: "EXCLUSIVE Spa Vehículos",
     locale: "es_CO",
@@ -53,10 +60,52 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "EXCLUSIVE Spa Vehículos | Detallado de Autos y Motos",
-    description: "Detallado profesional y Spa de Motos y Autos. Lavado técnico Snow Foam pH neutro. Agenda tu cita en 30 segundos.",
+    title: "EXCLUSIVE Spa Vehículos | Detallado de Autos y Motos en Medellín",
+    description:
+      "Spa y detallado automotriz profesional en Belén Granadas, Medellín. Lavado técnico Snow Foam pH neutro y protección cerámica.",
     images: ["/images/og-share.jpg"],
   },
+};
+
+const jsonLdLocalBusiness = {
+  "@context": "https://schema.org",
+  "@type": "AutoWash",
+  "name": "EXCLUSIVE Spa Vehículos",
+  "image": "https://www.exclusivespavehiculos.com/images/og-share.jpg",
+  "@id": "https://www.exclusivespavehiculos.com",
+  "url": "https://www.exclusivespavehiculos.com",
+  "telephone": "+573233118393",
+  "priceRange": "$$",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Calle 28 #74A-10",
+    "addressLocality": "Belén Granadas, Medellín",
+    "addressRegion": "Antioquia",
+    "postalCode": "050030",
+    "addressCountry": "CO"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": 6.2285,
+    "longitude": -75.5975
+  },
+  "openingHoursSpecification": [
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+      "opens": "08:00",
+      "closes": "18:00"
+    },
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": ["Sunday"],
+      "opens": "09:00",
+      "closes": "15:00"
+    }
+  ],
+  "sameAs": [
+    "https://wa.me/573233118393"
+  ]
 };
 
 export default function RootLayout({
@@ -67,6 +116,12 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${geistSans.variable} ${geistMono.variable} dark scroll-smooth`} suppressHydrationWarning>
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(jsonLdLocalBusiness),
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `
