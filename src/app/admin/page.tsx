@@ -384,13 +384,29 @@ export default function AdminDashboardPage() {
   const handleAdvanceStage = (bookingId: string, currentStage: BookingStage) => {
     if (currentStage >= 5) return;
     const nextStage = (currentStage + 1) as BookingStage;
-    const updated = updateBookingStage(bookingId, nextStage);
+    const currentBooking = bookings.find((b) => b.id === bookingId || b.code === bookingId);
+    const updated = updateBookingStage(
+      bookingId,
+      nextStage,
+      currentBooking?.bay,
+      currentBooking?.isPaid,
+      currentBooking?.paymentMethod,
+      currentBooking?.assignedEmployee
+    );
     setBookings(updated);
   };
 
   // Change stage directly
   const handleChangeStage = (bookingId: string, targetStage: BookingStage) => {
-    const updated = updateBookingStage(bookingId, targetStage);
+    const currentBooking = bookings.find((b) => b.id === bookingId || b.code === bookingId);
+    const updated = updateBookingStage(
+      bookingId,
+      targetStage,
+      currentBooking?.bay,
+      currentBooking?.isPaid,
+      currentBooking?.paymentMethod,
+      currentBooking?.assignedEmployee
+    );
     setBookings(updated);
   };
 

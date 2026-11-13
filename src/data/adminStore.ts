@@ -370,6 +370,8 @@ export function getStoredBookings(): AdminBooking[] {
         bay: b.bay || "Bahía 1 (Lavado)",
         stage: validStage,
         stageName: STAGE_CONFIG[validStage]?.label || "En Espera / Recepción",
+        assignedEmployee: b.assignedEmployee || "",
+        appointmentDate: b.appointmentDate || "",
         paymentMethod: b.paymentMethod || "pendiente",
         isPaid: Boolean(b.isPaid),
         createdAt: b.createdAt || new Date().toISOString(),
@@ -423,8 +425,12 @@ export function updateBookingStage(
   assignedEmployee?: string
 ): AdminBooking[] {
   const current = getStoredBookings();
+  let resolvedEmployee = assignedEmployee;
+
   const updated = current.map((b) => {
     if (b.id === bookingId || b.code === bookingId) {
+      const emp = assignedEmployee !== undefined ? assignedEmployee : (b.assignedEmployee || "");
+      resolvedEmployee = emp;
       return {
         ...b,
         stage: newStage,
@@ -432,7 +438,7 @@ export function updateBookingStage(
         bay: newBay || b.bay,
         isPaid: isPaid !== undefined ? isPaid : (newStage === 5 ? true : b.isPaid),
         paymentMethod: paymentMethod || b.paymentMethod,
-        assignedEmployee: assignedEmployee !== undefined ? assignedEmployee : b.assignedEmployee,
+        assignedEmployee: emp,
         updatedAt: new Date().toISOString(),
       };
     }
@@ -442,6 +448,7 @@ export function updateBookingStage(
   if (typeof window !== "undefined") {
     localStorage.setItem(STORAGE_KEY_BOOKINGS, JSON.stringify(updated));
     // Asynchronously update MongoDB backend
+    const targetBooking = updated.find((b) => b.id === bookingId || b.code === bookingId);
     fetch("/api/bookings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -449,10 +456,10 @@ export function updateBookingStage(
         id: bookingId,
         stage: newStage,
         stageName: STAGE_CONFIG[newStage]?.label,
-        bay: newBay,
-        isPaid,
-        paymentMethod,
-        assignedEmployee,
+        bay: newBay || targetBooking?.bay,
+        isPaid: targetBooking?.isPaid,
+        paymentMethod: targetBooking?.paymentMethod,
+        assignedEmployee: resolvedEmployee || targetBooking?.assignedEmployee || "",
       }),
     }).catch(() => {});
   }
