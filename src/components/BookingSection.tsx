@@ -113,12 +113,18 @@ export default function BookingSection({
     const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
     
     const now = new Date();
-    setTodayMinDate(now.toISOString().slice(0, 10));
+    const yNow = now.getFullYear();
+    const mNow = String(now.getMonth() + 1).padStart(2, "0");
+    const dNow = String(now.getDate()).padStart(2, "0");
+    setTodayMinDate(`${yNow}-${mNow}-${dNow}`);
 
     const computedDays = Array.from({ length: 21 }).map((_, index) => {
       const date = new Date();
       date.setDate(date.getDate() + index);
-      const isoDate = date.toISOString().slice(0, 10);
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      const isoDate = `${y}-${m}-${d}`;
       return {
         index,
         dayName: index === 0 ? "Hoy" : index === 1 ? "Mañana" : dayNames[date.getDay()],
@@ -175,14 +181,16 @@ export default function BookingSection({
   // Current time in Colombia (minutes since midnight)
   const [currentColombiaMinutes, setCurrentColombiaMinutes] = useState<number>(() => {
     try {
-      const colTimeStr = new Intl.DateTimeFormat("es-CO", {
+      const parts = new Intl.DateTimeFormat("en-US", {
         timeZone: "America/Bogota",
         hour: "numeric",
         minute: "numeric",
         hour12: false,
-      }).format(new Date());
-      const parts = colTimeStr.replace(/[^\d:]/g, "").split(":").map(Number);
-      return (parts[0] || 0) * 60 + (parts[1] || 0);
+        hourCycle: "h23",
+      }).formatToParts(new Date());
+      const h = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
+      const m = parseInt(parts.find((p) => p.type === "minute")?.value || "0", 10);
+      return h * 60 + m;
     } catch {
       const d = new Date();
       return d.getHours() * 60 + d.getMinutes();
@@ -192,34 +200,52 @@ export default function BookingSection({
   // Current ISO date in Colombia (YYYY-MM-DD)
   const todayColombiaIso = React.useMemo(() => {
     try {
-      return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(new Date());
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Bogota",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(new Date());
+      const y = parts.find((p) => p.type === "year")?.value || "2026";
+      const m = parts.find((p) => p.type === "month")?.value || "11";
+      const d = parts.find((p) => p.type === "day")?.value || "13";
+      return `${y}-${m}-${d}`;
     } catch {
-      return new Date().toISOString().slice(0, 10);
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const dNum = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${dNum}`;
     }
   }, []);
 
-  // Update current Colombia time periodically (every 30s)
+  // Update current Colombia time periodically (every 15s)
   useEffect(() => {
-    const interval = setInterval(() => {
+    const checkTime = () => {
       try {
-        const colTimeStr = new Intl.DateTimeFormat("es-CO", {
+        const parts = new Intl.DateTimeFormat("en-US", {
           timeZone: "America/Bogota",
           hour: "numeric",
           minute: "numeric",
           hour12: false,
-        }).format(new Date());
-        const parts = colTimeStr.replace(/[^\d:]/g, "").split(":").map(Number);
-        setCurrentColombiaMinutes((parts[0] || 0) * 60 + (parts[1] || 0));
+          hourCycle: "h23",
+        }).formatToParts(new Date());
+        const h = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
+        const m = parseInt(parts.find((p) => p.type === "minute")?.value || "0", 10);
+        setCurrentColombiaMinutes(h * 60 + m);
       } catch {
         const d = new Date();
         setCurrentColombiaMinutes(d.getHours() * 60 + d.getMinutes());
       }
-    }, 30000);
+    };
+
+    checkTime();
+    const interval = setInterval(checkTime, 15000);
     return () => clearInterval(interval);
   }, []);
 
   const selectedDay = weekDays[selectedDayIndex] || weekDays[0] || DEFAULT_DAY;
-  const isSelectedDayToday = selectedDay.isoDate === todayColombiaIso || selectedDayIndex === 0;
+  const isSelectedDayToday = selectedDayIndex === 0 || selectedDay.isoDate === todayColombiaIso || selectedDay.dayName === "Hoy";
 
   // Active dynamic slots configured by Admin for this date (or global default)
   const activeDaySlots = React.useMemo(
@@ -227,17 +253,37 @@ export default function BookingSection({
     [selectedDay.isoDate, scheduleVersion]
   );
 
-  // Filter out slots that have already passed if the selected day is TODAY
-  const visibleDaySlots = React.useMemo(() => {
+  // Truly available slots count (not passed, not blocked, has capacity)
+  const availableSlotsCount = React.useMemo(() => {
     return activeDaySlots.filter((slot) => {
-      if (!isSelectedDayToday) return true;
-      const slotMinutes = time12hToMinutes(slot.time);
-      // Only show future slots for today (past hours do not appear)
-      return slotMinutes > currentColombiaMinutes;
-    });
-  }, [activeDaySlots, isSelectedDayToday, currentColombiaMinutes]);
+      if (isSelectedDayToday) {
+        const slotMinutes = time12hToMinutes(slot.time);
+        if (slotMinutes <= currentColombiaMinutes) return false;
+      }
+      const isBlocked =
+        blockedSlots.includes(slot.time) ||
+        blockedSlots.includes(`${selectedDay.isoDate}_${slot.time}`);
+      const bookedCount = existingBookings.filter(
+        (b) =>
+          (b.appointmentDate === selectedDay.isoDate ||
+            b.day === selectedDay.fullDateString) &&
+          b.time === slot.time &&
+          b.stage < 5
+      ).length;
+      return !isBlocked && bookedCount < slotCapacity;
+    }).length;
+  }, [
+    activeDaySlots,
+    isSelectedDayToday,
+    currentColombiaMinutes,
+    blockedSlots,
+    selectedDay.isoDate,
+    selectedDay.fullDateString,
+    existingBookings,
+    slotCapacity,
+  ]);
 
-  // If currently selected slot is now in the past, deselect it
+  // If currently selected slot is in the past for today, automatically deselect it
   useEffect(() => {
     if (isSelectedDayToday && selectedTimeSlot) {
       const slotMin = time12hToMinutes(selectedTimeSlot);
@@ -301,6 +347,11 @@ export default function BookingSection({
 
     if (!selectedTimeSlot) {
       setFormError("Por favor selecciona una hora disponible para tu cita.");
+      return;
+    }
+    const slotMin = time12hToMinutes(selectedTimeSlot);
+    if (isSelectedDayToday && slotMin <= currentColombiaMinutes) {
+      setFormError("La hora seleccionada ya transcurrió hoy. Por favor elige un horario disponible o agenda para mañana.");
       return;
     }
     if (!licensePlate.trim() || cleanPlateAlpha.length < 5) {
@@ -605,7 +656,7 @@ export default function BookingSection({
                 </div>
               </div>
 
-              {/* STEP 4: Horarios Disponibles con Verificación de Cupos */}
+              {/* STEP 4: Horarios Disponibles con Verificación de Cupos y Bloqueo de Horas Pasadas */}
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <label className="text-xs uppercase font-bold text-slate-300 tracking-wider flex items-center gap-2">
@@ -613,76 +664,99 @@ export default function BookingSection({
                     Horas Disponibles para {selectedDay.fullDateString}
                   </label>
                   <span className="text-[11px] text-emerald-400 flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
+                    <span className={`w-2 h-2 rounded-full inline-block ${availableSlotsCount > 0 ? "bg-emerald-400 animate-ping" : "bg-amber-400"}`} />
                     <span>
-                      {visibleDaySlots.filter((s) => {
-                        const isBlocked = blockedSlots.includes(s.time) || blockedSlots.includes(`${selectedDay.isoDate}_${s.time}`);
-                        const bookedCount = existingBookings.filter(
-                          (b) => (b.appointmentDate === selectedDay.isoDate || b.day === selectedDay.fullDateString) && b.time === s.time && b.stage < 5
-                        ).length;
-                        return !isBlocked && bookedCount < slotCapacity;
-                      }).length}{" "}
-                      horarios disponibles
+                      {availableSlotsCount}{" "}
+                      {availableSlotsCount === 1 ? "horario disponible" : "horarios disponibles"}
                     </span>
                   </span>
                 </div>
 
-                {visibleDaySlots.length === 0 ? (
-                  <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-center space-y-3">
-                    <Clock className="w-8 h-8 text-amber-400 mx-auto" />
-                    <div>
-                      <h4 className="text-sm font-bold text-white">
-                        {isSelectedDayToday
-                          ? "Turnos finalizados para hoy"
-                          : "No hay turnos disponibles para esta fecha"}
-                      </h4>
-                      <p className="text-xs text-slate-400 mt-1">
-                        {isSelectedDayToday
-                          ? "Las horas de atención del día de hoy ya transcurrieron. ¡Te invitamos a agendar tu cita para mañana o los próximos días!"
-                          : "Los horarios para esta fecha están ocupados o bloqueados."}
-                      </p>
+                {/* Banner notice if today's hours have completely finished */}
+                {isSelectedDayToday && availableSlotsCount === 0 && (
+                  <div className="mb-3.5 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <Clock className="w-5 h-5 text-amber-400 shrink-0" />
+                      <div>
+                        <p className="text-xs font-bold text-white">Turnos de hoy finalizados</p>
+                        <p className="text-[11px] text-slate-400">
+                          Las horas de atención para hoy ya transcurrieron. Selecciona mañana para agendar tu cita.
+                        </p>
+                      </div>
                     </div>
-                    {isSelectedDayToday && weekDays.length > 1 && (
+                    {weekDays.length > 1 && (
                       <button
                         type="button"
                         onClick={() => {
                           setSelectedDayIndex(1);
                           if (activeWeekTab !== 0) setActiveWeekTab(0);
                         }}
-                        className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer"
+                        className="px-3.5 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-md shrink-0 cursor-pointer"
                       >
                         Ver Horarios para Mañana →
                       </button>
                     )}
                   </div>
+                )}
+
+                {activeDaySlots.length === 0 ? (
+                  <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-center space-y-2">
+                    <Clock className="w-7 h-7 text-amber-400 mx-auto" />
+                    <p className="text-xs text-slate-300 font-semibold">
+                      No hay horarios configurados para esta fecha.
+                    </p>
+                  </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
-                    {visibleDaySlots.map((slot, idx) => {
-                      const isBlocked = blockedSlots.includes(slot.time) || blockedSlots.includes(`${selectedDay.isoDate}_${slot.time}`);
+                    {activeDaySlots.map((slot, idx) => {
+                      const slotMinutes = time12hToMinutes(slot.time);
+                      const isPastHour = isSelectedDayToday && slotMinutes <= currentColombiaMinutes;
+
+                      const isBlocked =
+                        blockedSlots.includes(slot.time) ||
+                        blockedSlots.includes(`${selectedDay.isoDate}_${slot.time}`);
                       const bookedCount = existingBookings.filter(
-                        (b) => (b.appointmentDate === selectedDay.isoDate || b.day === selectedDay.fullDateString) && b.time === slot.time && b.stage < 5
+                        (b) =>
+                          (b.appointmentDate === selectedDay.isoDate ||
+                            b.day === selectedDay.fullDateString) &&
+                          b.time === slot.time &&
+                          b.stage < 5
                       ).length;
                       const remainingBays = Math.max(0, slotCapacity - bookedCount);
-                      const isAvailable = !isBlocked && remainingBays > 0;
+                      const isAvailable = !isPastHour && !isBlocked && remainingBays > 0;
 
                       return (
                         <button
                           key={`${slot.time}-${idx}`}
                           type="button"
                           disabled={!isAvailable}
-                          onClick={() => setSelectedTimeSlot(slot.time)}
-                          className={`py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all text-center flex flex-col items-center justify-center gap-0.5 ${
-                            !isAvailable
-                              ? "bg-red-950/20 border-red-900/30 text-slate-600 cursor-not-allowed line-through opacity-60"
+                          onClick={() => {
+                            if (isAvailable) {
+                              setSelectedTimeSlot(slot.time);
+                            }
+                          }}
+                          className={`py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all text-center flex flex-col items-center justify-center gap-0.5 select-none ${
+                            isPastHour
+                              ? "bg-slate-900/40 border-white/5 text-slate-600 cursor-not-allowed line-through opacity-40 shadow-none pointer-events-none"
+                              : !isAvailable
+                              ? "bg-red-950/20 border-red-900/30 text-slate-500 cursor-not-allowed line-through opacity-60 pointer-events-none"
                               : selectedTimeSlot === slot.time
                               ? "bg-cyan-500 text-black border-cyan-400 font-bold shadow-md shadow-cyan-500/30 ring-1 ring-cyan-300"
-                              : "bg-white/[0.03] border-white/10 text-slate-200 hover:border-cyan-400/50 hover:text-white"
+                              : "bg-white/[0.03] border-white/10 text-slate-200 hover:border-cyan-400/50 hover:text-white cursor-pointer"
                           }`}
-                          title={!isAvailable ? "Cupo no disponible para este día" : "Disponible para agendar"}
+                          title={
+                            isPastHour
+                              ? "Esta hora ya transcurrió hoy y no se puede reservar"
+                              : !isAvailable
+                              ? "Cupo no disponible para este horario"
+                              : "Disponible para agendar"
+                          }
                         >
                           <span className="font-mono">{slot.time}</span>
                           <span className="text-[9px] uppercase font-bold">
-                            {!isAvailable
+                            {isPastHour
+                              ? "No disp."
+                              : !isAvailable
                               ? "Ocupado"
                               : slotCapacity > 1
                               ? `${remainingBays} ${remainingBays === 1 ? "cupo" : "cupos"}`
