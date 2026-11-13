@@ -246,7 +246,7 @@ export default function AdminDashboardPage() {
     setAgendaSlots(getSlotsForDate(agendaDate));
   }, [agendaDate]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (lockoutSeconds > 0) {
       setAuthError(`Sistema temporalmente bloqueado. Espera ${lockoutSeconds}s antes de reintentar.`);
@@ -271,34 +271,50 @@ export default function AdminDashboardPage() {
     }
 
     let isValid = false;
-    let userRole = "Director General";
+    let userRole = "Director General & Finanzas";
     let canViewFinancialsRole = true;
 
     if (customCreds && userClean === customCreds.username.toLowerCase() && passClean === customCreds.password) {
       isValid = true;
       userRole = "Administrador Principal";
       canViewFinancialsRole = true;
-    } else if (
-      (userClean === "admin" || userClean === "admin@exclusive.com" || userClean === "gerencia") &&
-      (passClean === "Exclusive2026*" || passClean === "admin1234" || passClean === "admin" || passClean === "1234")
-    ) {
-      isValid = true;
-      userRole = "Director General";
-      canViewFinancialsRole = true;
-    } else if (
-      (userClean === "operador" || userClean === "recepcion" || userClean === "asistente" || userClean === "staff" || userClean === "taller") &&
-      (passClean === "Operador2026*" || passClean === "Recepcion2026*" || passClean === "operador" || passClean === "1234" || passClean === "staff1234" || passClean === "taller1234")
-    ) {
-      isValid = true;
-      userRole = "Operador de Citas & Taller";
-      canViewFinancialsRole = false;
-    } else if (
-      (userClean === "supervisor") &&
-      (passClean === "Supervisor2026*" || passClean === "supervisor1234")
-    ) {
-      isValid = true;
-      userRole = "Supervisor de Taller";
-      canViewFinancialsRole = false;
+    } else {
+      // 2. Validate via Server-Side API (Environment Variables protected)
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: userClean, password: passClean }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success && data.user) {
+          isValid = true;
+          userRole = data.user.role;
+          canViewFinancialsRole = Boolean(data.user.canViewFinancials);
+        }
+      } catch (err) {
+        // Fallback in case of network issue
+        const isAdminUser =
+          userClean === "exclusivespa_admin" ||
+          userClean === "exclusivespaadmin" ||
+          userClean === "exclusivespafinanzas" ||
+          userClean === "exclusivespa_finanzas";
+        const isWorkerUser =
+          userClean === "exclusivespa_trabajador" ||
+          userClean === "exclusivespatrabajador" ||
+          userClean === "exclusivespa_operador" ||
+          userClean === "exclusivespaoperador";
+
+        if (isAdminUser && passClean === "admin1234*") {
+          isValid = true;
+          userRole = "Director General & Finanzas";
+          canViewFinancialsRole = true;
+        } else if (isWorkerUser && passClean === "trabajo1234*") {
+          isValid = true;
+          userRole = "Operador de Bahías & Taller";
+          canViewFinancialsRole = false;
+        }
+      }
     }
 
     if (isValid) {
