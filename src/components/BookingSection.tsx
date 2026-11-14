@@ -110,14 +110,16 @@ export default function BookingSection({
   }>>([DEFAULT_DAY]);
 
   // Current time & date in Colombia (UTC-5)
-  const [colombiaTime, setColombiaTime] = useState<{ totalMinutes: number; isoDate: string }>(() =>
-    getColombiaNow()
-  );
+  // Defer reading current time to useEffect to prevent Next.js prerender errors
+  const [colombiaTime, setColombiaTime] = useState<{ totalMinutes: number; isoDate: string }>({
+    totalMinutes: 0,
+    isoDate: "",
+  });
 
   const currentColombiaMinutes = colombiaTime.totalMinutes;
   const todayColombiaIso = colombiaTime.isoDate;
 
-  // Keep time up-to-date every 10 seconds
+  // Keep time up-to-date every 10 seconds (client-side only)
   useEffect(() => {
     const updateTime = () => setColombiaTime(getColombiaNow());
     updateTime();
