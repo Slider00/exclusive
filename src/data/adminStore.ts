@@ -183,17 +183,56 @@ const STORAGE_KEY_GLOBAL_SLOTS = "exclusive_custom_global_slots";
 const STORAGE_KEY_DATE_SLOTS = "exclusive_custom_date_slots";
 const STORAGE_KEY_SLOT_CAPACITY = "exclusive_slot_capacity";
 
-// Helper: Convert 12h string ("08:30 AM" / "02:15 PM") to minutes since midnight for chronological sorting
+// Helper: Accurate current Colombia time (UTC-5) across all platforms & browsers
+export function getColombiaNow(): {
+  hours: number;
+  minutes: number;
+  totalMinutes: number;
+  isoDate: string;
+} {
+  const now = new Date();
+  const colombiaMs = now.getTime() - 5 * 3600 * 1000;
+  const d = new Date(colombiaMs);
+  const hours = d.getUTCHours();
+  const minutes = d.getUTCMinutes();
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  const isoDate = `${y}-${m}-${day}`;
+  return {
+    hours,
+    minutes,
+    totalMinutes: hours * 60 + minutes,
+    isoDate,
+  };
+}
+
+// Helper: Convert any time string ("08:30 AM", "8:30 a. m.", "14:20", "2:15 pm") to minutes since midnight
 export function time12hToMinutes(timeStr: string): number {
-  const clean = (timeStr || "").trim().toUpperCase();
-  const match = clean.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
-  if (!match) return 9999;
-  let hours = parseInt(match[1], 10);
-  const mins = parseInt(match[2], 10);
-  const period = match[3];
-  if (period === "PM" && hours < 12) hours += 12;
-  if (period === "AM" && hours === 12) hours = 0;
-  return hours * 60 + mins;
+  if (!timeStr) return 9999;
+  // Normalize unicode non-breaking spaces and spaces, lowercase
+  const clean = String(timeStr).replace(/[\u00a0\u202f\s]+/g, " ").trim().toLowerCase();
+
+  // 12-hour match: "08:00 am", "8:00 a. m.", "02:30 pm", "2:30 p.m."
+  const match12 = clean.match(/^(\d{1,2}):(\d{2})\s*([ap])\.?\s*m?\.?$/i);
+  if (match12) {
+    let h = parseInt(match12[1], 10);
+    const m = parseInt(match12[2], 10);
+    const isPm = match12[3].toLowerCase() === "p";
+    if (isPm && h < 12) h += 12;
+    if (!isPm && h === 12) h = 0;
+    return h * 60 + m;
+  }
+
+  // 24-hour match: "08:00", "14:30"
+  const match24 = clean.match(/^(\d{1,2}):(\d{2})$/);
+  if (match24) {
+    const h = parseInt(match24[1], 10);
+    const m = parseInt(match24[2], 10);
+    return h * 60 + m;
+  }
+
+  return 9999;
 }
 
 // Helper: Convert 24h ("14:20") or 12h ("2:20 pm") into standard "02:20 PM"

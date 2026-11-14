@@ -11,6 +11,7 @@ import {
   getSlotsForDate,
   getSlotCapacity,
   time12hToMinutes,
+  getColombiaNow,
 } from "@/data/adminStore";
 import { VehicleType } from "./ThreeVehicleCanvas";
 import { 
@@ -108,19 +109,33 @@ export default function BookingSection({
     isoDate: string;
   }>>([DEFAULT_DAY]);
 
+  // Current time & date in Colombia (UTC-5)
+  const [colombiaTime, setColombiaTime] = useState<{ totalMinutes: number; isoDate: string }>(() =>
+    getColombiaNow()
+  );
+
+  const currentColombiaMinutes = colombiaTime.totalMinutes;
+  const todayColombiaIso = colombiaTime.isoDate;
+
+  // Keep time up-to-date every 10 seconds
+  useEffect(() => {
+    const updateTime = () => setColombiaTime(getColombiaNow());
+    updateTime();
+    const interval = setInterval(updateTime, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     const dayNames = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
     
-    const now = new Date();
-    const yNow = now.getFullYear();
-    const mNow = String(now.getMonth() + 1).padStart(2, "0");
-    const dNow = String(now.getDate()).padStart(2, "0");
-    setTodayMinDate(`${yNow}-${mNow}-${dNow}`);
+    const colNow = getColombiaNow();
+    setTodayMinDate(colNow.isoDate);
 
+    // Anchor the 21 days strictly to today in Colombia (UTC-5)
+    const [yT, mT, dT] = colNow.isoDate.split("-").map(Number);
     const computedDays = Array.from({ length: 21 }).map((_, index) => {
-      const date = new Date();
-      date.setDate(date.getDate() + index);
+      const date = new Date(yT, mT - 1, dT + index);
       const y = date.getFullYear();
       const m = String(date.getMonth() + 1).padStart(2, "0");
       const d = String(date.getDate()).padStart(2, "0");
@@ -178,74 +193,11 @@ export default function BookingSection({
     };
   }, []);
 
-  // Current time in Colombia (minutes since midnight)
-  const [currentColombiaMinutes, setCurrentColombiaMinutes] = useState<number>(() => {
-    try {
-      const parts = new Intl.DateTimeFormat("en-US", {
-        timeZone: "America/Bogota",
-        hour: "numeric",
-        minute: "numeric",
-        hour12: false,
-        hourCycle: "h23",
-      }).formatToParts(new Date());
-      const h = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
-      const m = parseInt(parts.find((p) => p.type === "minute")?.value || "0", 10);
-      return h * 60 + m;
-    } catch {
-      const d = new Date();
-      return d.getHours() * 60 + d.getMinutes();
-    }
-  });
-
-  // Current ISO date in Colombia (YYYY-MM-DD)
-  const todayColombiaIso = React.useMemo(() => {
-    try {
-      const parts = new Intl.DateTimeFormat("en-US", {
-        timeZone: "America/Bogota",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).formatToParts(new Date());
-      const y = parts.find((p) => p.type === "year")?.value || "2026";
-      const m = parts.find((p) => p.type === "month")?.value || "11";
-      const d = parts.find((p) => p.type === "day")?.value || "13";
-      return `${y}-${m}-${d}`;
-    } catch {
-      const d = new Date();
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const dNum = String(d.getDate()).padStart(2, "0");
-      return `${y}-${m}-${dNum}`;
-    }
-  }, []);
-
-  // Update current Colombia time periodically (every 15s)
-  useEffect(() => {
-    const checkTime = () => {
-      try {
-        const parts = new Intl.DateTimeFormat("en-US", {
-          timeZone: "America/Bogota",
-          hour: "numeric",
-          minute: "numeric",
-          hour12: false,
-          hourCycle: "h23",
-        }).formatToParts(new Date());
-        const h = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
-        const m = parseInt(parts.find((p) => p.type === "minute")?.value || "0", 10);
-        setCurrentColombiaMinutes(h * 60 + m);
-      } catch {
-        const d = new Date();
-        setCurrentColombiaMinutes(d.getHours() * 60 + d.getMinutes());
-      }
-    };
-
-    checkTime();
-    const interval = setInterval(checkTime, 15000);
-    return () => clearInterval(interval);
-  }, []);
-
   const selectedDay = weekDays[selectedDayIndex] || weekDays[0] || DEFAULT_DAY;
-  const isSelectedDayToday = selectedDayIndex === 0 || selectedDay.isoDate === todayColombiaIso || selectedDay.dayName === "Hoy";
+  const isSelectedDayToday =
+    selectedDayIndex === 0 ||
+    selectedDay.isoDate === todayColombiaIso ||
+    (selectedDay.dayName || "").toLowerCase().includes("hoy");
 
   // Active dynamic slots configured by Admin for this date (or global default)
   const activeDaySlots = React.useMemo(
@@ -253,13 +205,18 @@ export default function BookingSection({
     [selectedDay.isoDate, scheduleVersion]
   );
 
-  // Truly available slots count (not passed, not blocked, has capacity)
-  const availableSlotsCount = React.useMemo(() => {
+  // Filter out past hours for TODAY so they DO NOT APPEAR at all
+  const visibleDaySlots = React.useMemo(() => {
     return activeDaySlots.filter((slot) => {
-      if (isSelectedDayToday) {
-        const slotMinutes = time12hToMinutes(slot.time);
-        if (slotMinutes <= currentColombiaMinutes) return false;
-      }
+      if (!isSelectedDayToday) return true;
+      const slotMinutes = time12hToMinutes(slot.time);
+      return slotMinutes > currentColombiaMinutes;
+    });
+  }, [activeDaySlots, isSelectedDayToday, currentColombiaMinutes]);
+
+  // Truly available slots count (among visible, not blocked, has capacity)
+  const availableSlotsCount = React.useMemo(() => {
+    return visibleDaySlots.filter((slot) => {
       const isBlocked =
         blockedSlots.includes(slot.time) ||
         blockedSlots.includes(`${selectedDay.isoDate}_${slot.time}`);
@@ -273,24 +230,13 @@ export default function BookingSection({
       return !isBlocked && bookedCount < slotCapacity;
     }).length;
   }, [
-    activeDaySlots,
-    isSelectedDayToday,
-    currentColombiaMinutes,
+    visibleDaySlots,
     blockedSlots,
     selectedDay.isoDate,
     selectedDay.fullDateString,
     existingBookings,
     slotCapacity,
   ]);
-
-  // Filter out past hours for TODAY so they DO NOT APPEAR at all
-  const visibleDaySlots = React.useMemo(() => {
-    return activeDaySlots.filter((slot) => {
-      if (!isSelectedDayToday) return true;
-      const slotMinutes = time12hToMinutes(slot.time);
-      return slotMinutes > currentColombiaMinutes;
-    });
-  }, [activeDaySlots, isSelectedDayToday, currentColombiaMinutes]);
 
   // If currently selected slot is in the past for today, automatically deselect it
   useEffect(() => {
