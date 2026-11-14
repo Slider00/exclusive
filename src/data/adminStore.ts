@@ -668,17 +668,153 @@ export function updateBookingEmployee(
   return updated;
 }
 
-// Helper: Delete booking
-export function deleteBooking(bookingId: string): AdminBooking[] {
+// Helper: Convert minutes since midnight back to 12h string (e.g. 420 -> "07:00 AM")
+export function minutesTo12hString(totalMinutes: number): string {
+  const clamped = ((totalMinutes % 1440) + 1440) % 1440;
+  const h24 = Math.floor(clamped / 60);
+  const m = clamped % 60;
+  const period = h24 >= 12 ? "PM" : "AM";
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+// Helper: Check if a booking can be cancelled or rescheduled (>= 60 minutes before scheduled time)
+export function getAppointmentModifyEligibility(booking: {
+  appointmentDate?: string;
+  day?: string;
+  time?: string;
+  stage?: number;
+}): {
+  canModify: boolean;
+  minutesRemaining: number;
+  deadlineTimeStr: string;
+  isPast: boolean;
+} {
+  const colNow = getColombiaNow();
+  const slotMinutes = time12hToMinutes(booking.time || "");
+  if (slotMinutes === 9999) {
+    return {
+      canModify: false,
+      minutesRemaining: 0,
+      deadlineTimeStr: "--:--",
+      isPast: true,
+    };
+  }
+
+  let bookingIso = colNow.isoDate;
+  if (booking.appointmentDate && /^\d{4}-\d{2}-\d{2}$/.test(booking.appointmentDate.trim())) {
+    bookingIso = booking.appointmentDate.trim();
+  } else if (booking.day) {
+    // Parse Spanish day string like "Sábado, 14 de Nov"
+    const monthNames = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+    const matchDay = booking.day.toLowerCase().match(/(\d{1,2})\s+de\s+([a-záéíóú]{3})/);
+    if (matchDay) {
+      const dayNum = parseInt(matchDay[1], 10);
+      const mIdx = monthNames.indexOf(matchDay[2].slice(0, 3));
+      if (mIdx !== -1) {
+        const [yNow] = colNow.isoDate.split("-").map(Number);
+        bookingIso = `${yNow}-${String(mIdx + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
+      }
+    }
+  }
+
+  const [yB, mB, dB] = bookingIso.split("-").map(Number);
+  const [yT, mT, dT] = colNow.isoDate.split("-").map(Number);
+  const utcB = Date.UTC(yB, mB - 1, dB);
+  const utcT = Date.UTC(yT, mT - 1, dT);
+  const diffDays = Math.round((utcB - utcT) / (1000 * 60 * 60 * 24));
+
+  const minutesRemaining = diffDays * 1440 + (slotMinutes - colNow.totalMinutes);
+  const deadlineTimeStr = minutesTo12hString(Math.max(0, slotMinutes - 60));
+  const stageNum = Number(booking.stage) || 1;
+
+  return {
+    canModify: stageNum === 1 && minutesRemaining >= 60,
+    minutesRemaining,
+    deadlineTimeStr,
+    isPast: minutesRemaining <= 0,
+  };
+}
+
+// Helper: Reschedule booking to a new date & time
+export async function rescheduleBooking(
+  bookingId: string,
+  bookingCode: string,
+  newIsoDate: string,
+  newDayLabel: string,
+  newTime: string
+): Promise<AdminBooking | null> {
   const current = getStoredBookings();
-  const updated = current.filter((b) => b.id !== bookingId && b.code !== bookingId);
+  let updatedTarget: AdminBooking | null = null;
+
+  const updated = current.map((b) => {
+    if (b.id === bookingId || b.code === bookingId || (bookingCode && b.code === bookingCode)) {
+      const existingNotes = b.clientNotes || "";
+      const hasRescheduleTag = existingNotes.includes("[Reprogramada]");
+      const newNotes = hasRescheduleTag
+        ? existingNotes
+        : `${existingNotes ? existingNotes + " • " : ""}[Reprogramada]`;
+
+      updatedTarget = {
+        ...b,
+        day: newDayLabel,
+        appointmentDate: newIsoDate,
+        time: newTime,
+        clientNotes: newNotes,
+        updatedAt: new Date().toISOString(),
+      };
+      return updatedTarget;
+    }
+    return b;
+  });
 
   if (typeof window !== "undefined") {
     localStorage.setItem(STORAGE_KEY_BOOKINGS, JSON.stringify(updated));
+    window.dispatchEvent(new Event("exclusive_schedule_changed"));
+
+    try {
+      await fetch("/api/bookings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: bookingId,
+          code: bookingCode,
+          day: newDayLabel,
+          appointmentDate: newIsoDate,
+          time: newTime,
+          clientNotes: (updatedTarget as AdminBooking | null)?.clientNotes,
+        }),
+      });
+    } catch {
+      // Ignore network error if offline
+    }
+  }
+
+  return updatedTarget;
+}
+
+// Helper: Delete / Cancel booking
+export function deleteBooking(bookingId: string, bookingCode?: string): AdminBooking[] {
+  const current = getStoredBookings();
+  const target = current.find(
+    (b) => b.id === bookingId || b.code === bookingId || (bookingCode && b.code === bookingCode)
+  );
+  const resolvedCode = bookingCode || target?.code || "";
+
+  const updated = current.filter(
+    (b) => b.id !== bookingId && b.code !== bookingId && (!resolvedCode || b.code !== resolvedCode)
+  );
+
+  if (typeof window !== "undefined") {
+    localStorage.setItem(STORAGE_KEY_BOOKINGS, JSON.stringify(updated));
+    window.dispatchEvent(new Event("exclusive_schedule_changed"));
     // Asynchronously delete in MongoDB backend
-    fetch(`/api/bookings?id=${encodeURIComponent(bookingId)}`, {
-      method: "DELETE",
-    }).catch(() => {});
+    fetch(
+      `/api/bookings?id=${encodeURIComponent(bookingId)}&code=${encodeURIComponent(resolvedCode)}`,
+      {
+        method: "DELETE",
+      }
+    ).catch(() => {});
   }
 
   return updated;

@@ -166,7 +166,7 @@ export default function BookingSection({
       fetch("/api/bookings")
         .then((r) => r.json())
         .then((data) => {
-          if (data.success && Array.isArray(data.bookings) && data.bookings.length > 0) {
+          if (data.success && Array.isArray(data.bookings)) {
             setExistingBookings(data.bookings);
             localStorage.setItem("exclusive_bookings", JSON.stringify(data.bookings));
           }
@@ -182,6 +182,7 @@ export default function BookingSection({
     const handleScheduleChangeEvent = () => {
       setSlotCapacityState(getSlotCapacity());
       try {
+        setExistingBookings(getStoredBookings());
         const blocked = JSON.parse(localStorage.getItem("exclusive_blocked_slots") || "[]");
         setBlockedSlots(blocked);
       } catch {}
@@ -982,6 +983,16 @@ export default function BookingSection({
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Info note about rescheduling/cancelling */}
+          <div className="p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 text-xs text-slate-300 flex items-start gap-2.5 mb-6">
+            <Clock className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+            <span>
+              <strong className="text-white">¿Necesitas cambiar la hora o cancelar?</strong> Puedes reprogramar o cancelar tu cita desde el botón{" "}
+              <strong className="text-cyan-400">&quot;Rastrear Vehículo&quot;</strong> con tu placa hasta{" "}
+              <strong className="text-white">1 hora antes</strong> del turno.
+            </span>
           </div>
 
           {/* Actions */}

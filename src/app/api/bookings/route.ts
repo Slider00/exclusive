@@ -183,11 +183,24 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PUT /api/bookings - Update booking stage / payment / bay
+// PUT /api/bookings - Update booking stage / payment / bay / schedule (reschedule)
 export async function PUT(req: NextRequest) {
   try {
     const data = await req.json();
-    const { id, code, stage, stageName, bay, isPaid, paymentMethod, assignedEmployee } = data;
+    const {
+      id,
+      code,
+      stage,
+      stageName,
+      bay,
+      isPaid,
+      paymentMethod,
+      assignedEmployee,
+      day,
+      appointmentDate,
+      time,
+      clientNotes,
+    } = data;
 
     if (!isMongoConfigured()) {
       return NextResponse.json({ success: false, fallback: true });
@@ -195,13 +208,16 @@ export async function PUT(req: NextRequest) {
 
     await connectToDatabase();
 
+    const isObjectId = typeof id === "string" && /^[0-9a-fA-F]{24}$/.test(id);
     const query: any = {};
-    if (id && id.length === 24) {
+    if (isObjectId) {
       query._id = id;
     } else if (code) {
-      query.code = code;
+      query.code = String(code).toUpperCase();
+    } else if (typeof id === "string" && id.toUpperCase().startsWith("EXC-")) {
+      query.code = id.toUpperCase();
     } else {
-      query._id = id;
+      return NextResponse.json({ success: false, message: "Identificador de reserva no válido" }, { status: 400 });
     }
 
     const updateFields: any = { updatedAt: new Date() };
@@ -211,6 +227,10 @@ export async function PUT(req: NextRequest) {
     if (isPaid !== undefined) updateFields.isPaid = isPaid;
     if (paymentMethod !== undefined) updateFields.paymentMethod = paymentMethod;
     if (assignedEmployee !== undefined) updateFields.assignedEmployee = assignedEmployee;
+    if (day !== undefined) updateFields.day = day;
+    if (appointmentDate !== undefined) updateFields.appointmentDate = appointmentDate;
+    if (time !== undefined) updateFields.time = time;
+    if (clientNotes !== undefined) updateFields.clientNotes = clientNotes;
 
     const updated = await Booking.findOneAndUpdate(query, updateFields, {
       new: true,
@@ -248,10 +268,17 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: true, clearedAll: true });
     }
 
+    const isObjectId = typeof id === "string" && /^[0-9a-fA-F]{24}$/.test(id);
     const query: any = {};
-    if (id && id.length === 24) query._id = id;
-    else if (code) query.code = code;
-    else if (id) query._id = id;
+    if (isObjectId) {
+      query._id = id;
+    } else if (code) {
+      query.code = code.toUpperCase();
+    } else if (typeof id === "string" && id.toUpperCase().startsWith("EXC-")) {
+      query.code = id.toUpperCase();
+    } else {
+      return NextResponse.json({ success: false, message: "Identificador no válido" }, { status: 400 });
+    }
 
     await Booking.deleteOne(query);
 
