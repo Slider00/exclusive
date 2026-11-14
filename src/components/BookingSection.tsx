@@ -283,6 +283,15 @@ export default function BookingSection({
     slotCapacity,
   ]);
 
+  // Filter out past hours for TODAY so they DO NOT APPEAR at all
+  const visibleDaySlots = React.useMemo(() => {
+    return activeDaySlots.filter((slot) => {
+      if (!isSelectedDayToday) return true;
+      const slotMinutes = time12hToMinutes(slot.time);
+      return slotMinutes > currentColombiaMinutes;
+    });
+  }, [activeDaySlots, isSelectedDayToday, currentColombiaMinutes]);
+
   // If currently selected slot is in the past for today, automatically deselect it
   useEffect(() => {
     if (isSelectedDayToday && selectedTimeSlot) {
@@ -672,46 +681,37 @@ export default function BookingSection({
                   </span>
                 </div>
 
-                {/* Banner notice if today's hours have completely finished */}
-                {isSelectedDayToday && availableSlotsCount === 0 && (
-                  <div className="mb-3.5 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <Clock className="w-5 h-5 text-amber-400 shrink-0" />
-                      <div>
-                        <p className="text-xs font-bold text-white">Turnos de hoy finalizados</p>
-                        <p className="text-[11px] text-slate-400">
-                          Las horas de atención para hoy ya transcurrieron. Selecciona mañana para agendar tu cita.
-                        </p>
-                      </div>
+                {visibleDaySlots.length === 0 ? (
+                  <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-center space-y-3">
+                    <Clock className="w-8 h-8 text-amber-400 mx-auto" />
+                    <div>
+                      <h4 className="text-sm font-bold text-white">
+                        {isSelectedDayToday
+                          ? "Turnos finalizados para hoy"
+                          : "No hay turnos disponibles para esta fecha"}
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-1">
+                        {isSelectedDayToday
+                          ? "Las horas de atención del día de hoy ya transcurrieron. ¡Te invitamos a agendar tu cita para mañana o los próximos días!"
+                          : "Los horarios para esta fecha están ocupados o bloqueados."}
+                      </p>
                     </div>
-                    {weekDays.length > 1 && (
+                    {isSelectedDayToday && weekDays.length > 1 && (
                       <button
                         type="button"
                         onClick={() => {
                           setSelectedDayIndex(1);
                           if (activeWeekTab !== 0) setActiveWeekTab(0);
                         }}
-                        className="px-3.5 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-md shrink-0 cursor-pointer"
+                        className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer"
                       >
                         Ver Horarios para Mañana →
                       </button>
                     )}
                   </div>
-                )}
-
-                {activeDaySlots.length === 0 ? (
-                  <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-center space-y-2">
-                    <Clock className="w-7 h-7 text-amber-400 mx-auto" />
-                    <p className="text-xs text-slate-300 font-semibold">
-                      No hay horarios configurados para esta fecha.
-                    </p>
-                  </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
-                    {activeDaySlots.map((slot, idx) => {
-                      const slotMinutes = time12hToMinutes(slot.time);
-                      const isPastHour = isSelectedDayToday && slotMinutes <= currentColombiaMinutes;
-
+                    {visibleDaySlots.map((slot, idx) => {
                       const isBlocked =
                         blockedSlots.includes(slot.time) ||
                         blockedSlots.includes(`${selectedDay.isoDate}_${slot.time}`);
@@ -723,7 +723,7 @@ export default function BookingSection({
                           b.stage < 5
                       ).length;
                       const remainingBays = Math.max(0, slotCapacity - bookedCount);
-                      const isAvailable = !isPastHour && !isBlocked && remainingBays > 0;
+                      const isAvailable = !isBlocked && remainingBays > 0;
 
                       return (
                         <button
@@ -736,27 +736,17 @@ export default function BookingSection({
                             }
                           }}
                           className={`py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all text-center flex flex-col items-center justify-center gap-0.5 select-none ${
-                            isPastHour
-                              ? "bg-slate-900/40 border-white/5 text-slate-600 cursor-not-allowed line-through opacity-40 shadow-none pointer-events-none"
-                              : !isAvailable
+                            !isAvailable
                               ? "bg-red-950/20 border-red-900/30 text-slate-500 cursor-not-allowed line-through opacity-60 pointer-events-none"
                               : selectedTimeSlot === slot.time
                               ? "bg-cyan-500 text-black border-cyan-400 font-bold shadow-md shadow-cyan-500/30 ring-1 ring-cyan-300"
                               : "bg-white/[0.03] border-white/10 text-slate-200 hover:border-cyan-400/50 hover:text-white cursor-pointer"
                           }`}
-                          title={
-                            isPastHour
-                              ? "Esta hora ya transcurrió hoy y no se puede reservar"
-                              : !isAvailable
-                              ? "Cupo no disponible para este horario"
-                              : "Disponible para agendar"
-                          }
+                          title={!isAvailable ? "Cupo no disponible para este horario" : "Disponible para agendar"}
                         >
                           <span className="font-mono">{slot.time}</span>
                           <span className="text-[9px] uppercase font-bold">
-                            {isPastHour
-                              ? "No disp."
-                              : !isAvailable
+                            {!isAvailable
                               ? "Ocupado"
                               : slotCapacity > 1
                               ? `${remainingBays} ${remainingBays === 1 ? "cupo" : "cupos"}`
