@@ -86,12 +86,11 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DELETE /api/expenses - Delete all or single expense
+// DELETE /api/expenses - Delete a single specific expense by id
 export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-    const all = searchParams.get("all");
 
     if (!isMongoConfigured()) {
       return NextResponse.json({ success: false, fallback: true });
@@ -99,12 +98,7 @@ export async function DELETE(req: NextRequest) {
 
     await connectToDatabase();
 
-    if (all === "true") {
-      await Expense.deleteMany({});
-      return NextResponse.json({ success: true, clearedAll: true });
-    }
-
-    if (id && id.length === 24) {
+    if (id && /^[0-9a-fA-F]{24}$/.test(id)) {
       await Expense.deleteOne({ _id: id });
     }
 

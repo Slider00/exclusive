@@ -249,24 +249,18 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// DELETE /api/bookings - Delete booking (or all if all=true)
+// DELETE /api/bookings - Delete a single specific booking by id or code
 export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     const code = searchParams.get("code");
-    const all = searchParams.get("all");
 
     if (!isMongoConfigured()) {
       return NextResponse.json({ success: false, fallback: true });
     }
 
     await connectToDatabase();
-
-    if (all === "true") {
-      await Booking.deleteMany({});
-      return NextResponse.json({ success: true, clearedAll: true });
-    }
 
     const isObjectId = typeof id === "string" && /^[0-9a-fA-F]{24}$/.test(id);
     const query: any = {};

@@ -440,28 +440,9 @@ const INITIAL_DEMO_BOOKINGS: AdminBooking[] = [];
 
 const INITIAL_DEMO_EXPENSES: ExpenseItem[] = [];
 
-const STORAGE_KEY_CLEAN_START = "exclusive_clean_start_v1";
-
-function ensureCleanStartMigration() {
-  if (typeof window === "undefined") return;
-  try {
-    if (localStorage.getItem(STORAGE_KEY_CLEAN_START) !== "true") {
-      localStorage.setItem(STORAGE_KEY_BOOKINGS, JSON.stringify([]));
-      localStorage.setItem(STORAGE_KEY_EXPENSES, JSON.stringify([]));
-      localStorage.removeItem(STORAGE_KEY_BLOCKED_SLOTS);
-      localStorage.setItem(STORAGE_KEY_CLEAN_START, "true");
-      fetch("/api/bookings?all=true", { method: "DELETE" }).catch(() => {});
-      fetch("/api/expenses?all=true", { method: "DELETE" }).catch(() => {});
-    }
-  } catch {
-    // ignore
-  }
-}
-
 // Helper: Get all bookings
 export function getStoredBookings(): AdminBooking[] {
   if (typeof window === "undefined") return INITIAL_DEMO_BOOKINGS;
-  ensureCleanStartMigration();
   try {
     const raw = localStorage.getItem(STORAGE_KEY_BOOKINGS);
     if (!raw) {
@@ -823,7 +804,6 @@ export function deleteBooking(bookingId: string, bookingCode?: string): AdminBoo
 // Helper: Get Expenses
 export function getStoredExpenses(): ExpenseItem[] {
   if (typeof window === "undefined") return INITIAL_DEMO_EXPENSES;
-  ensureCleanStartMigration();
   try {
     const raw = localStorage.getItem(STORAGE_KEY_EXPENSES);
     if (!raw) {
