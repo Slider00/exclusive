@@ -441,8 +441,6 @@ export default function CustomerReceiptModal({
                   className="px-2.5 py-1 rounded-lg bg-black/60 border border-white/15 text-white text-[11px] font-bold focus:outline-none focus:border-cyan-400"
                 >
                   <option value="efectivo">Efectivo</option>
-                  <option value="nequi">Nequi</option>
-                  <option value="daviplata">Daviplata</option>
                   <option value="tarjeta">Tarjeta</option>
                 </select>
 

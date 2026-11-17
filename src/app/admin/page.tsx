@@ -659,9 +659,7 @@ export default function AdminDashboardPage() {
   // Payment method breakdown (based on date-filtered bookings)
   const paymentBreakdown = {
     efectivo: filteredBookings.filter((b) => b.paymentMethod === "efectivo" && b.isPaid).reduce((s, b) => s + b.price, 0),
-    nequi: filteredBookings.filter((b) => b.paymentMethod === "nequi" && b.isPaid).reduce((s, b) => s + b.price, 0),
-    daviplata: filteredBookings.filter((b) => b.paymentMethod === "daviplata" && b.isPaid).reduce((s, b) => s + b.price, 0),
-    tarjeta: filteredBookings.filter((b) => b.paymentMethod === "tarjeta" && b.isPaid).reduce((s, b) => s + b.price, 0),
+    tarjeta: filteredBookings.filter((b) => b.paymentMethod !== "efectivo" && b.isPaid).reduce((s, b) => s + b.price, 0),
   };
 
   // --- 1. SECURE USER & PASSWORD LOGIN GATEWAY ---
@@ -1557,8 +1555,6 @@ export default function AdminDashboardPage() {
                               >
                                 <option value="pendiente" className="bg-slate-900 text-amber-300">⏳ Pendiente</option>
                                 <option value="efectivo" className="bg-slate-900 text-emerald-300">💵 Efectivo</option>
-                                <option value="nequi" className="bg-slate-900 text-purple-300">📱 Nequi</option>
-                                <option value="daviplata" className="bg-slate-900 text-red-300">🏦 Daviplata</option>
                                 <option value="tarjeta" className="bg-slate-900 text-cyan-300">💳 Tarjeta</option>
                               </select>
                             ) : (
@@ -1791,8 +1787,6 @@ export default function AdminDashboardPage() {
                         >
                           <option value="pendiente" className="bg-slate-900 text-amber-300">⏳ Pendiente</option>
                           <option value="efectivo" className="bg-slate-900 text-emerald-300">💵 Efectivo</option>
-                          <option value="nequi" className="bg-slate-900 text-purple-300">📱 Nequi</option>
-                          <option value="daviplata" className="bg-slate-900 text-red-300">🏦 Daviplata</option>
                           <option value="tarjeta" className="bg-slate-900 text-cyan-300">💳 Tarjeta</option>
                         </select>
                       ) : (
@@ -1955,8 +1949,6 @@ export default function AdminDashboardPage() {
                                 >
                                   <option value="pendiente" className="bg-slate-900 text-amber-300">⏳ Pendiente</option>
                                   <option value="efectivo" className="bg-slate-900 text-emerald-300">💵 Efectivo</option>
-                                  <option value="nequi" className="bg-slate-900 text-purple-300">📱 Nequi</option>
-                                  <option value="daviplata" className="bg-slate-900 text-red-300">🏦 Daviplata</option>
                                   <option value="tarjeta" className="bg-slate-900 text-cyan-300">💳 Tarjeta / Dataf.</option>
                                 </select>
                               </div>
@@ -2083,20 +2075,6 @@ export default function AdminDashboardPage() {
                     <span className="text-xs font-semibold text-slate-300">Efectivo en Caja</span>
                     <span className="text-sm font-black text-white">
                       {formatCurrency(paymentBreakdown.efectivo)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                    <span className="text-xs font-semibold text-slate-300">Transferencias Nequi</span>
-                    <span className="text-sm font-black text-white">
-                      {formatCurrency(paymentBreakdown.nequi)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                    <span className="text-xs font-semibold text-slate-300">Transferencias Daviplata</span>
-                    <span className="text-sm font-black text-white">
-                      {formatCurrency(paymentBreakdown.daviplata)}
                     </span>
                   </div>
 

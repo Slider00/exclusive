@@ -488,7 +488,7 @@ export default function ExpressWalkInModal({
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-slate-300">Método de Pago:</span>
                 <div className="flex items-center gap-1">
-                  {(["efectivo", "nequi", "daviplata", "tarjeta", "pendiente"] as const).map(
+                  {(["efectivo", "tarjeta", "pendiente"] as const).map(
                     (m) => (
                       <button
                         key={m}

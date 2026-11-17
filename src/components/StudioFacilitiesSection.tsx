@@ -138,7 +138,7 @@ export default function StudioFacilitiesSection() {
           {/* Navigation Action Buttons */}
           <div className="pt-6 mt-6 border-t border-white/10 space-y-2.5">
             <a
-              href="https://maps.google.com/?q=Calle+28+%2374A-10+Belen+Granadas+Medellin"
+              href="https://www.google.com/maps/search/?api=1&query=Cl.+28+%2374A-10,+Bel%C3%A9n,+Medell%C3%ADn,+Antioquia,+Colombia"
               target="_blank"
               rel="noopener noreferrer"
               className="w-full py-3.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider bg-gradient-to-r from-cyan-400 to-blue-500 hover:brightness-110 text-slate-950 flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 active:scale-95 transition-all"
