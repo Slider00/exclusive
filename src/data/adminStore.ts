@@ -357,16 +357,107 @@ export function saveSlotsConfiguration(
   return uniqueSorted;
 }
 
-// Helper: Get simultaneous vehicle capacity per slot (1, 2, or 3 bays)
+export const CAR_BAY_CAPACITY = 2; // 2 bahías compartidas entre Automóvil y Camioneta
+export const MOTO_BAY_CAPACITY = 3; // 3 bahías exclusivas para Motocicleta
+export const TOTAL_BAY_CAPACITY = CAR_BAY_CAPACITY + MOTO_BAY_CAPACITY; // 5 bahías totales por hora
+
+export interface SlotBayStatus {
+  carsBooked: number;
+  motosBooked: number;
+  totalBooked: number;
+  carCapacity: number;
+  motoCapacity: number;
+  totalCapacity: number;
+  remainingCarBays: number;
+  remainingMotoBays: number;
+  remainingTotalBays: number;
+  remainingForVehicle: number;
+  capacityForVehicle: number;
+  isManuallyBlocked: boolean;
+  isAllBaysFull: boolean;
+  isAvailableForVehicle: boolean;
+  assignedBayName: string;
+}
+
+// Helper: Calculate per-slot availability separating 2 Car/SUV bays and 3 Motorcycle bays (5 total)
+export function getSlotBayStatus(params: {
+  bookings: any[];
+  dateIso: string;
+  fullDateString?: string;
+  timeSlot: string;
+  vehicleType?: VehicleType;
+  blockedSlots?: string[];
+  excludeBookingId?: string;
+  excludeBookingCode?: string;
+}): SlotBayStatus {
+  const {
+    bookings,
+    dateIso,
+    fullDateString,
+    timeSlot,
+    vehicleType = "carro",
+    blockedSlots = [],
+    excludeBookingId,
+    excludeBookingCode,
+  } = params;
+
+  const isManuallyBlocked =
+    blockedSlots.includes(timeSlot) ||
+    (Boolean(dateIso) && blockedSlots.includes(`${dateIso}_${timeSlot}`));
+
+  const slotBookings = (bookings || []).filter((b) => {
+    if (!b) return false;
+    if (excludeBookingId && (b.id === excludeBookingId || b.code === excludeBookingId)) return false;
+    if (excludeBookingCode && b.code === excludeBookingCode) return false;
+    const matchesDate =
+      (Boolean(dateIso) && b.appointmentDate === dateIso) ||
+      (Boolean(fullDateString) && b.day === fullDateString);
+    return matchesDate && b.time === timeSlot && Number(b.stage || 1) < 5;
+  });
+
+  const carsBooked = slotBookings.filter(
+    (b) => b.vehicleType === "carro" || b.vehicleType === "camioneta" || !b.vehicleType
+  ).length;
+  const motosBooked = slotBookings.filter((b) => b.vehicleType === "moto").length;
+  const totalBooked = carsBooked + motosBooked;
+
+  const remainingCarBays = Math.max(0, CAR_BAY_CAPACITY - carsBooked);
+  const remainingMotoBays = Math.max(0, MOTO_BAY_CAPACITY - motosBooked);
+  const remainingTotalBays = remainingCarBays + remainingMotoBays;
+
+  const isMoto = vehicleType === "moto";
+  const remainingForVehicle = isMoto ? remainingMotoBays : remainingCarBays;
+  const capacityForVehicle = isMoto ? MOTO_BAY_CAPACITY : CAR_BAY_CAPACITY;
+
+  const isAllBaysFull = remainingCarBays === 0 && remainingMotoBays === 0;
+  const isAvailableForVehicle = !isManuallyBlocked && remainingForVehicle > 0;
+
+  const assignedBayName = isMoto
+    ? `Bahía 3 (Motos - Cupo ${Math.min(MOTO_BAY_CAPACITY, motosBooked + 1)})`
+    : `Bahía ${Math.min(CAR_BAY_CAPACITY, carsBooked + 1)} (Lavado Autos)`;
+
+  return {
+    carsBooked,
+    motosBooked,
+    totalBooked,
+    carCapacity: CAR_BAY_CAPACITY,
+    motoCapacity: MOTO_BAY_CAPACITY,
+    totalCapacity: TOTAL_BAY_CAPACITY,
+    remainingCarBays,
+    remainingMotoBays,
+    remainingTotalBays,
+    remainingForVehicle,
+    capacityForVehicle,
+    isManuallyBlocked,
+    isAllBaysFull,
+    isAvailableForVehicle,
+    assignedBayName,
+  };
+}
+
+// Helper: Get simultaneous vehicle capacity per slot (5 total bays: 2 car + 3 moto)
 export function getSlotCapacity(): number {
-  if (typeof window === "undefined") return 1;
-  try {
-    const val = Number(localStorage.getItem(STORAGE_KEY_SLOT_CAPACITY));
-    if (val >= 1 && val <= 5) return val;
-    return 1;
-  } catch {
-    return 1;
-  }
+  return TOTAL_BAY_CAPACITY;
 }
 
 // Helper: Set simultaneous vehicle capacity per slot

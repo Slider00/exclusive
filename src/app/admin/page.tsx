@@ -2297,26 +2297,18 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
-                {/* 3. Capacidad Simultánea por Turno (1, 2 o 3 bahías) */}
+                {/* 3. Capacidad Simultánea por Turno (2 Bahías Autos + 3 Bahías Motos = 5) */}
                 <div className="lg:col-span-3 space-y-1.5">
                   <label className="text-[11px] uppercase font-bold text-slate-300 block">
-                    3. Cupos por Hora (Bahías)
+                    3. Distribución de Bahías por Hora
                   </label>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {[1, 2, 3].map((cap) => (
-                      <button
-                        key={cap}
-                        type="button"
-                        onClick={() => handleChangeSlotCapacity(cap)}
-                        className={`py-2 px-2 rounded-xl text-[11px] font-black border transition-all cursor-pointer ${
-                          slotCapacity === cap
-                            ? "bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-sm"
-                            : "bg-white/5 border-white/10 text-slate-400 hover:text-white"
-                        }`}
-                      >
-                        {cap} {cap === 1 ? "Auto" : "Autos"}
-                      </button>
-                    ))}
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <div className="py-2 px-2.5 rounded-xl text-[11px] font-black border bg-cyan-500/15 border-cyan-400/40 text-cyan-300 text-center">
+                      🚗 2 Bahías Autos
+                    </div>
+                    <div className="py-2 px-2.5 rounded-xl text-[11px] font-black border bg-emerald-500/15 border-emerald-400/40 text-emerald-300 text-center">
+                      🏍️ 3 Bahías Motos
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2352,18 +2344,20 @@ export default function AdminDashboardPage() {
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Horarios del Día</span>
                 <span className="text-base font-black text-white">
-                  {agendaSlots.length} horas ({agendaSlots.length * slotCapacity} cupos)
+                  {agendaSlots.length} horas ({agendaSlots.length * 5} cupos)
                 </span>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Horarios Disponibles</span>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Horarios con Cupo</span>
                 <span className="text-base font-black text-emerald-400">
                   {agendaSlots.filter((s) => {
                     const isBlocked = blockedSlots.includes(`${agendaDate}_${s.time}`) || blockedSlots.includes(s.time);
-                    const bookedCount = bookings.filter(
+                    const slotB = bookings.filter(
                       (b) => (b.appointmentDate === agendaDate || (agendaDate === todayIso && b.day?.toLowerCase().includes("hoy"))) && b.time === s.time && b.stage < 5
-                    ).length;
-                    return !isBlocked && bookedCount < slotCapacity;
+                    );
+                    const carsCount = slotB.filter((b) => b.vehicleType !== "moto").length;
+                    const motosCount = slotB.filter((b) => b.vehicleType === "moto").length;
+                    return !isBlocked && (carsCount < 2 || motosCount < 3);
                   }).length} libres
                 </span>
               </div>
@@ -2390,7 +2384,9 @@ export default function AdminDashboardPage() {
                 const bookedVehicles = bookings.filter(
                   (b) => (b.appointmentDate === agendaDate || (agendaDate === todayIso && b.day?.toLowerCase().includes("hoy"))) && b.time === slotItem.time && b.stage < 5
                 );
-                const isFull = bookedVehicles.length >= slotCapacity;
+                const carsBooked = bookedVehicles.filter((b) => b.vehicleType !== "moto").length;
+                const motosBooked = bookedVehicles.filter((b) => b.vehicleType === "moto").length;
+                const isFull = carsBooked >= 2 && motosBooked >= 3;
 
                 return (
                   <div
@@ -2420,10 +2416,8 @@ export default function AdminDashboardPage() {
                           {isBlocked
                             ? "Bloqueado"
                             : isFull
-                            ? "Lleno"
-                            : slotCapacity > 1
-                            ? `${bookedVehicles.length}/${slotCapacity} Ocup.`
-                            : "Libre"}
+                            ? "Lleno (5/5)"
+                            : `${bookedVehicles.length}/5 Ocup.`}
                         </span>
 
                         {bookedVehicles.length === 0 && (
@@ -2437,6 +2431,16 @@ export default function AdminDashboardPage() {
                           </button>
                         )}
                       </div>
+                    </div>
+
+                    {/* Mini counter per category */}
+                    <div className="flex items-center justify-between text-[10px] font-mono bg-black/30 px-2 py-1 rounded-lg border border-white/5">
+                      <span className={carsBooked >= 2 ? "text-amber-400 font-bold" : "text-slate-300"}>
+                        🚗 Autos: {carsBooked}/2
+                      </span>
+                      <span className={motosBooked >= 3 ? "text-amber-400 font-bold" : "text-slate-300"}>
+                        🏍️ Motos: {motosBooked}/3
+                      </span>
                     </div>
 
                     {bookedVehicles.length > 0 ? (
@@ -2458,9 +2462,7 @@ export default function AdminDashboardPage() {
                       </p>
                     ) : (
                       <p className="text-[11px] text-emerald-400/80 py-1">
-                        {slotCapacity > 1
-                          ? `${slotCapacity} cupos disponibles`
-                          : "Cupo disponible para agendar"}
+                        2 Autos + 3 Motos disponibles
                       </p>
                     )}
 

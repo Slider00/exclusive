@@ -15,6 +15,7 @@ import {
   time12hToMinutes,
   getSlotsForDate,
   getSlotCapacity,
+  getSlotBayStatus,
   getStoredBookings,
   getAppointmentModifyEligibility,
   rescheduleBooking,
@@ -777,19 +778,17 @@ export default function TrackVehicleModal({
                           ) : (
                             <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
                               {rescheduleVisibleSlots.map((slot, idx) => {
-                                const isBlocked =
-                                  blockedSlots.includes(slot.time) ||
-                                  blockedSlots.includes(`${targetRescheduleDay?.isoDate}_${slot.time}`);
-                                const bookedCount = allBookings.filter(
-                                  (b) =>
-                                    b.id !== searchResult.id &&
-                                    b.code !== searchResult.code &&
-                                    (b.appointmentDate === targetRescheduleDay?.isoDate ||
-                                      b.day === targetRescheduleDay?.fullDateString) &&
-                                    b.time === slot.time &&
-                                    Number(b.stage) < 5
-                                ).length;
-                                const isAvailable = !isBlocked && bookedCount < slotCapacity;
+                                const bayStatus = getSlotBayStatus({
+                                  bookings: allBookings,
+                                  dateIso: targetRescheduleDay?.isoDate || "",
+                                  fullDateString: targetRescheduleDay?.fullDateString,
+                                  timeSlot: slot.time,
+                                  vehicleType: searchResult.vehicleType || "carro",
+                                  blockedSlots,
+                                  excludeBookingId: searchResult.id,
+                                  excludeBookingCode: searchResult.code,
+                                });
+                                const isAvailable = bayStatus.isAvailableForVehicle;
 
                                 return (
                                   <button
@@ -799,7 +798,7 @@ export default function TrackVehicleModal({
                                     onClick={() => {
                                       if (isAvailable) setSelectedRescheduleTime(slot.time);
                                     }}
-                                    className={`py-2 px-2 rounded-lg text-[11px] font-mono font-bold border transition-all ${
+                                    className={`py-2 px-2 rounded-lg text-[11px] font-mono font-bold border transition-all flex flex-col items-center justify-center ${
                                       !isAvailable
                                         ? "bg-red-950/20 border-red-900/30 text-slate-600 line-through cursor-not-allowed"
                                         : selectedRescheduleTime === slot.time
@@ -807,7 +806,12 @@ export default function TrackVehicleModal({
                                         : "bg-black/40 border-white/10 text-slate-200 hover:border-cyan-400/50 cursor-pointer"
                                     }`}
                                   >
-                                    {slot.time}
+                                    <span>{slot.time}</span>
+                                    <span className="text-[8px] uppercase font-sans font-bold opacity-80">
+                                      {!isAvailable
+                                        ? "Ocupado"
+                                        : `${bayStatus.remainingForVehicle} ${bayStatus.remainingForVehicle === 1 ? "cupo" : "cupos"}`}
+                                    </span>
                                   </button>
                                 );
                               })}

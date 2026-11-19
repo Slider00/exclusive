@@ -10,6 +10,7 @@ import {
   getStoredBookings,
   getSlotsForDate,
   getSlotCapacity,
+  getSlotBayStatus,
   time12hToMinutes,
   getColombiaNow,
 } from "@/data/adminStore";
@@ -217,20 +218,18 @@ export default function BookingSection({
     });
   }, [activeDaySlots, isSelectedDayToday, currentColombiaMinutes]);
 
-  // Truly available slots count (among visible, not blocked, has capacity)
+  // Truly available slots count for the currently selected vehicleType (2 car/camioneta bays, 3 moto bays)
   const availableSlotsCount = React.useMemo(() => {
     return visibleDaySlots.filter((slot) => {
-      const isBlocked =
-        blockedSlots.includes(slot.time) ||
-        blockedSlots.includes(`${selectedDay.isoDate}_${slot.time}`);
-      const bookedCount = existingBookings.filter(
-        (b) =>
-          (b.appointmentDate === selectedDay.isoDate ||
-            b.day === selectedDay.fullDateString) &&
-          b.time === slot.time &&
-          b.stage < 5
-      ).length;
-      return !isBlocked && bookedCount < slotCapacity;
+      const bayStatus = getSlotBayStatus({
+        bookings: existingBookings,
+        dateIso: selectedDay.isoDate,
+        fullDateString: selectedDay.fullDateString,
+        timeSlot: slot.time,
+        vehicleType,
+        blockedSlots,
+      });
+      return bayStatus.isAvailableForVehicle;
     }).length;
   }, [
     visibleDaySlots,
@@ -238,18 +237,40 @@ export default function BookingSection({
     selectedDay.isoDate,
     selectedDay.fullDateString,
     existingBookings,
-    slotCapacity,
+    vehicleType,
   ]);
 
-  // If currently selected slot is in the past for today, automatically deselect it
+  // If currently selected slot is in the past for today OR full for the current vehicleType, automatically deselect it
   useEffect(() => {
-    if (isSelectedDayToday && selectedTimeSlot) {
+    if (!selectedTimeSlot) return;
+    if (isSelectedDayToday) {
       const slotMin = time12hToMinutes(selectedTimeSlot);
       if (slotMin <= currentColombiaMinutes) {
         setSelectedTimeSlot("");
+        return;
       }
     }
-  }, [isSelectedDayToday, selectedTimeSlot, currentColombiaMinutes]);
+    const bayStatus = getSlotBayStatus({
+      bookings: existingBookings,
+      dateIso: selectedDay.isoDate,
+      fullDateString: selectedDay.fullDateString,
+      timeSlot: selectedTimeSlot,
+      vehicleType,
+      blockedSlots,
+    });
+    if (!bayStatus.isAvailableForVehicle) {
+      setSelectedTimeSlot("");
+    }
+  }, [
+    isSelectedDayToday,
+    selectedTimeSlot,
+    currentColombiaMinutes,
+    existingBookings,
+    selectedDay.isoDate,
+    selectedDay.fullDateString,
+    vehicleType,
+    blockedSlots,
+  ]);
 
   // Handle custom date selection from input
   const handleCustomDateSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -312,6 +333,22 @@ export default function BookingSection({
       setFormError("La hora seleccionada ya transcurrió hoy. Por favor elige un horario disponible o agenda para mañana.");
       return;
     }
+
+    const bayStatus = getSlotBayStatus({
+      bookings: existingBookings,
+      dateIso: selectedDay.isoDate,
+      fullDateString: selectedDay.fullDateString,
+      timeSlot: selectedTimeSlot,
+      vehicleType,
+      blockedSlots,
+    });
+    if (!bayStatus.isAvailableForVehicle) {
+      setFormError(
+        `Las bahías de ${vehicleType === "moto" ? "motocicleta (3/3)" : "automóvil/camioneta (2/2)"} para las ${selectedTimeSlot} ya están ocupadas. Elige otra hora.`
+      );
+      return;
+    }
+
     if (!licensePlate.trim() || cleanPlateAlpha.length < 5) {
       setFormError("Por favor ingresa una placa válida (ej: ABC-123 o ABC-12D).");
       return;
@@ -356,7 +393,7 @@ export default function BookingSection({
           ? `${clientNotes ? clientNotes + " • " : ""}[Bono Inauguración 15% OFF Aplicado]`
           : clientNotes,
         isWalkIn: false,
-        bay: "Bahía 1 (Lavado)",
+        bay: bayStatus.assignedBayName,
         stage: 1,
         stageName: "En Espera / Recepción",
         paymentMethod: "pendiente",
@@ -661,18 +698,16 @@ export default function BookingSection({
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
                     {visibleDaySlots.map((slot, idx) => {
-                      const isBlocked =
-                        blockedSlots.includes(slot.time) ||
-                        blockedSlots.includes(`${selectedDay.isoDate}_${slot.time}`);
-                      const bookedCount = existingBookings.filter(
-                        (b) =>
-                          (b.appointmentDate === selectedDay.isoDate ||
-                            b.day === selectedDay.fullDateString) &&
-                          b.time === slot.time &&
-                          b.stage < 5
-                      ).length;
-                      const remainingBays = Math.max(0, slotCapacity - bookedCount);
-                      const isAvailable = !isBlocked && remainingBays > 0;
+                      const bayStatus = getSlotBayStatus({
+                        bookings: existingBookings,
+                        dateIso: selectedDay.isoDate,
+                        fullDateString: selectedDay.fullDateString,
+                        timeSlot: slot.time,
+                        vehicleType,
+                        blockedSlots,
+                      });
+                      const isAvailable = bayStatus.isAvailableForVehicle;
+                      const remainingBays = bayStatus.remainingForVehicle;
 
                       return (
                         <button
@@ -691,15 +726,19 @@ export default function BookingSection({
                               ? "bg-cyan-500 text-black border-cyan-400 font-bold shadow-md shadow-cyan-500/30 ring-1 ring-cyan-300"
                               : "bg-white/[0.03] border-white/10 text-slate-200 hover:border-cyan-400/50 hover:text-white cursor-pointer"
                           }`}
-                          title={!isAvailable ? "Cupo no disponible para este horario" : "Disponible para agendar"}
+                          title={
+                            !isAvailable
+                              ? bayStatus.isAllBaysFull
+                                ? "Todas las bahías (2 autos + 3 motos) están llenas en este horario"
+                                : `Bahías de ${vehicleType === "moto" ? "moto (3/3)" : "auto/camioneta (2/2)"} llenas en este horario`
+                              : `${remainingBays} ${remainingBays === 1 ? "cupo disponible" : "cupos disponibles"} para ${vehicleType === "moto" ? "moto" : "auto/camioneta"}`
+                          }
                         >
                           <span className="font-mono">{slot.time}</span>
                           <span className="text-[9px] uppercase font-bold">
                             {!isAvailable
                               ? "Ocupado"
-                              : slotCapacity > 1
-                              ? `${remainingBays} ${remainingBays === 1 ? "cupo" : "cupos"}`
-                              : "Libre"}
+                              : `${remainingBays} ${remainingBays === 1 ? "cupo" : "cupos"}`}
                           </span>
                         </button>
                       );
