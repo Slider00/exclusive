@@ -108,7 +108,7 @@ export default function CustomerReceiptModal({
       `Fecha: ${booking.day || "Hoy"} - ${booking.time || "10:00 AM"}\n` +
       financialSnippet +
       `-----------------------------------------\n` +
-      `Seguimiento en vivo: https://exclusive-autowash.com?placa=${(booking.licensePlate || "").toUpperCase()}`;
+      `¡Gracias por confiar en Exclusive AutoWash & Detailing Studio!`;
 
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -379,14 +379,11 @@ export default function CustomerReceiptModal({
             </div>
             <div className="text-[10px] text-slate-600 leading-tight">
               <p className="font-bold text-slate-900 text-[11px] mb-0.5">
-                Rastreo de Turno en Tiempo Real
+                Código de Reserva & Turno
               </p>
               <p>
-                Escanea o ingresa tu placa en nuestro portal para consultar el avance técnico y estado de entrega de tu vehículo.
+                Conserva tu código <strong className="font-mono text-slate-900">{booking.code || "EXC"}</strong> o placa <strong className="font-mono text-slate-900">{(booking.licensePlate || "").toUpperCase()}</strong> para consultar el estado de tu servicio.
               </p>
-              <span className="font-mono text-[9px] text-cyan-700 underline truncate block mt-0.5">
-                exclusive-autowash.com?placa={(booking.licensePlate || "").toUpperCase()}
-              </span>
             </div>
           </div>
 

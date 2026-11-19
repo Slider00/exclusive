@@ -324,6 +324,13 @@ export async function syncProductsWithBackend(): Promise<DetailingProduct[]> {
   try {
     const res = await fetch("/api/products");
     const data = await res.json();
+    if (typeof window !== "undefined" && typeof data?.sectionEnabled === "boolean") {
+      localStorage.setItem(
+        "exclusive_products_section_enabled",
+        data.sectionEnabled ? "true" : "false"
+      );
+      window.dispatchEvent(new Event("exclusive_products_visibility_changed"));
+    }
     if (data.success && Array.isArray(data.products) && data.products.length > 0) {
       if (typeof window !== "undefined") {
         localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(data.products));

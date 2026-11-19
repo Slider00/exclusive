@@ -10,6 +10,7 @@ import {
   PRODUCTS_UPDATED_EVENT,
 } from "@/data/productsData";
 import { formatCurrency } from "@/data/servicesData";
+import { getProductsSectionEnabled } from "@/data/adminStore";
 import {
   FlaskConical,
   Sparkles,
@@ -28,6 +29,7 @@ export default function PremiumProductsSection({
   onSelectProduct,
 }: PremiumProductsSectionProps) {
   const [products, setProducts] = useState<DetailingProduct[]>(PREMIUM_PRODUCTS);
+  const [isSectionEnabled, setIsSectionEnabled] = useState<boolean>(true);
   const [activeCategory, setActiveCategory] = useState<string>("todos");
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const [isPaused, setIsPaused] = useState<boolean>(false);
@@ -35,13 +37,24 @@ export default function PremiumProductsSection({
 
   useEffect(() => {
     setProducts(getStoredProducts());
-    syncProductsWithBackend().then((fresh) => setProducts(fresh)).catch(() => {});
+    setIsSectionEnabled(getProductsSectionEnabled());
+    syncProductsWithBackend()
+      .then((fresh) => {
+        setProducts(fresh);
+        setIsSectionEnabled(getProductsSectionEnabled());
+      })
+      .catch(() => {});
 
-    const handleUpdate = () => setProducts(getStoredProducts());
+    const handleUpdate = () => {
+      setProducts(getStoredProducts());
+      setIsSectionEnabled(getProductsSectionEnabled());
+    };
     window.addEventListener(PRODUCTS_UPDATED_EVENT, handleUpdate);
+    window.addEventListener("exclusive_products_visibility_changed", handleUpdate);
     window.addEventListener("storage", handleUpdate);
     return () => {
       window.removeEventListener(PRODUCTS_UPDATED_EVENT, handleUpdate);
+      window.removeEventListener("exclusive_products_visibility_changed", handleUpdate);
       window.removeEventListener("storage", handleUpdate);
     };
   }, []);
@@ -126,6 +139,8 @@ export default function PremiumProductsSection({
       setActiveIndex(clamped);
     }
   };
+
+  if (!isSectionEnabled) return null;
 
   return (
     <section id="productos" className="py-20 px-4 max-w-7xl mx-auto w-full relative">

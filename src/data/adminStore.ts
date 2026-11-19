@@ -504,6 +504,38 @@ export function setPromoEnabled(enabled: boolean): boolean {
   return enabled;
 }
 
+const STORAGE_KEY_PRODUCTS_SECTION_ENABLED = "exclusive_products_section_enabled";
+
+// Helper: Check if the Products Showcase Section is enabled on the user view
+export function getProductsSectionEnabled(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const val = localStorage.getItem(STORAGE_KEY_PRODUCTS_SECTION_ENABLED);
+    if (val === null) return true; // Enabled by default
+    return val === "true";
+  } catch {
+    return true;
+  }
+}
+
+// Helper: Toggle Products Showcase Section visibility from Financial Admin Panel (syncs to MongoDB too)
+export function setProductsSectionEnabled(enabled: boolean): boolean {
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(STORAGE_KEY_PRODUCTS_SECTION_ENABLED, enabled ? "true" : "false");
+      window.dispatchEvent(new Event("exclusive_products_visibility_changed"));
+      fetch("/api/products", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toggleSection: true, enabled }),
+      }).catch(() => {});
+    } catch {
+      // ignore
+    }
+  }
+  return enabled;
+}
+
 // Helper: Check if a license plate has already redeemed the one-time 15% OFF promo
 export function hasPlateUsedPromo(
   plate: string,
@@ -1041,7 +1073,6 @@ export function createWhatsAppReceiptLink(booking: AdminBooking | any, hideFinan
     `👤 *Lavador / Técnico:* ${booking.assignedEmployee || "Equipo Técnico Exclusive"}\n` +
     `📅 *Fecha:* ${booking.day || "Hoy"} - ${booking.time || "En curso"}\n` +
     financialLines +
-    `🌐 *Rastreo en vivo de tu vehículo:* https://exclusive-autowash.com?placa=${(booking.licensePlate || "").toUpperCase()}\n` +
     `-----------------------------------------\n` +
     `¡Gracias por confiar en Exclusive AutoWash & Detailing Studio!`
   );

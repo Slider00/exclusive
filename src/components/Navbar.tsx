@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Sparkles, Calendar, Search, MessageCircle, Menu, X, ShieldCheck, Lock } from "lucide-react";
 import HeaderFoamDrips from "@/components/HeaderFoamDrips";
+import { getProductsSectionEnabled } from "@/data/adminStore";
 
 interface NavbarProps {
   onOpenTracker: () => void;
@@ -13,6 +14,18 @@ interface NavbarProps {
 
 export default function Navbar({ onOpenTracker, onScrollToBooking }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showProductsNav, setShowProductsNav] = useState(true);
+
+  useEffect(() => {
+    setShowProductsNav(getProductsSectionEnabled());
+    const handleVisibilityChange = () => setShowProductsNav(getProductsSectionEnabled());
+    window.addEventListener("exclusive_products_visibility_changed", handleVisibilityChange);
+    window.addEventListener("storage", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("exclusive_products_visibility_changed", handleVisibilityChange);
+      window.removeEventListener("storage", handleVisibilityChange);
+    };
+  }, []);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 px-3 sm:px-5 lg:px-6 py-3 md:py-3.5">
@@ -65,12 +78,14 @@ export default function Navbar({ onOpenTracker, onScrollToBooking }: NavbarProps
             >
               Proceso Técnico
             </a>
-            <a
-              href="#productos"
-              className="px-2.5 xl:px-3 py-1.5 rounded-full hover:bg-white/[0.08] hover:text-cyan-300 transition-all whitespace-nowrap shrink-0"
-            >
-              Productos Premium
-            </a>
+            {showProductsNav && (
+              <a
+                href="#productos"
+                className="px-2.5 xl:px-3 py-1.5 rounded-full hover:bg-white/[0.08] hover:text-cyan-300 transition-all whitespace-nowrap shrink-0"
+              >
+                Productos Premium
+              </a>
+            )}
             <a
               href="#instalaciones"
               className="px-2.5 xl:px-3 py-1.5 rounded-full hover:bg-white/[0.08] hover:text-cyan-300 transition-all whitespace-nowrap shrink-0"
@@ -169,13 +184,15 @@ export default function Navbar({ onOpenTracker, onScrollToBooking }: NavbarProps
             >
               Proceso Técnico
             </a>
-            <a
-              href="#productos"
-              onClick={() => setMobileMenuOpen(false)}
-              className="px-3.5 py-3 rounded-xl text-sm font-medium text-slate-200 hover:text-cyan-400 hover:bg-white/[0.06] active:bg-cyan-500/10 transition-colors touch-manipulation"
-            >
-              Productos Premium
-            </a>
+            {showProductsNav && (
+              <a
+                href="#productos"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3.5 py-3 rounded-xl text-sm font-medium text-slate-200 hover:text-cyan-400 hover:bg-white/[0.06] active:bg-cyan-500/10 transition-colors touch-manipulation"
+              >
+                Productos Premium
+              </a>
+            )}
             <a
               href="#instalaciones"
               onClick={() => setMobileMenuOpen(false)}

@@ -21,6 +21,8 @@ import {
   syncWithBackend,
   getPromoEnabled,
   setPromoEnabled,
+  getProductsSectionEnabled,
+  setProductsSectionEnabled,
   getSlotsForDate,
   saveSlotsConfiguration,
   generateIntervalSlots,
@@ -126,6 +128,7 @@ export default function AdminDashboardPage() {
   // Time slots blocked state (for capacity management)
   const [blockedSlots, setBlockedSlots] = useState<string[]>([]);
   const [isPromoEnabled, setIsPromoEnabledState] = useState<boolean>(true);
+  const [isProductsSectionEnabled, setIsProductsSectionEnabledState] = useState<boolean>(true);
   const [agendaSlots, setAgendaSlots] = useState<Array<{ time: string; available: boolean }>>(TIME_SLOTS);
   const [slotCapacity, setSlotCapacityState] = useState<number>(1);
   const [newManualTime, setNewManualTime] = useState<string>("08:30");
@@ -217,6 +220,7 @@ export default function AdminDashboardPage() {
     setProducts(p);
     setEmployeesList(emp);
     setIsPromoEnabledState(getPromoEnabled());
+    setIsProductsSectionEnabledState(getProductsSectionEnabled());
     setSlotCapacityState(getSlotCapacity());
     setAgendaSlots(getSlotsForDate(agendaDate));
 
@@ -236,7 +240,10 @@ export default function AdminDashboardPage() {
       .catch(() => {});
 
     syncProductsWithBackend()
-      .then((freshP) => setProducts(freshP))
+      .then((freshP) => {
+        setProducts(freshP);
+        setIsProductsSectionEnabledState(getProductsSectionEnabled());
+      })
       .catch(() => {});
 
     syncEmployeesWithBackend()
@@ -897,6 +904,28 @@ export default function AdminDashboardPage() {
                 >
                   <Tag className={`w-3.5 h-3.5 shrink-0 ${isPromoEnabled ? "text-emerald-400" : "text-slate-500"}`} />
                   <span>{isPromoEnabled ? "15% OFF: Activo" : "15% OFF: Inactivo"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextState = !isProductsSectionEnabled;
+                    setProductsSectionEnabled(nextState);
+                    setIsProductsSectionEnabledState(nextState);
+                  }}
+                  className={`h-10 px-3 rounded-xl text-xs font-bold border transition-all inline-flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                    isProductsSectionEnabled
+                      ? "bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/40"
+                      : "bg-white/5 hover:bg-white/10 text-slate-400 border-white/15"
+                  }`}
+                  title={
+                    isProductsSectionEnabled
+                      ? "Sección de Productos Visible en la Web de Usuarios (Clic para ocultar)"
+                      : "Sección de Productos Oculta en la Web de Usuarios (Clic para mostrar)"
+                  }
+                >
+                  <FlaskConical className={`w-3.5 h-3.5 shrink-0 ${isProductsSectionEnabled ? "text-cyan-400" : "text-slate-500"}`} />
+                  <span>{isProductsSectionEnabled ? "Productos Web: Visible" : "Productos Web: Oculto"}</span>
                 </button>
 
                 <button
@@ -2503,6 +2532,27 @@ export default function AdminDashboardPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextState = !isProductsSectionEnabled;
+                    setProductsSectionEnabled(nextState);
+                    setIsProductsSectionEnabledState(nextState);
+                  }}
+                  className={`px-3.5 py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 cursor-pointer ${
+                    isProductsSectionEnabled
+                      ? "bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/40"
+                      : "bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border-rose-500/40"
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${isProductsSectionEnabled ? "bg-emerald-400 animate-ping" : "bg-rose-400"}`} />
+                  <span>
+                    {isProductsSectionEnabled
+                      ? "Vista Usuario: Habilitada (Clic para ocultar)"
+                      : "Vista Usuario: Deshabilitada (Clic para mostrar)"}
+                  </span>
+                </button>
+
                 <button
                   type="button"
                   onClick={handleResetProducts}
