@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -88,7 +88,17 @@ import {
   Upload,
   Tag,
   ChevronDown,
+  Bell,
+  X,
 } from "lucide-react";
+
+interface AdminToastItem {
+  id: string;
+  type: "new_booking" | "success" | "info" | "warning";
+  title: string;
+  message: string;
+  plate?: string;
+}
 
 export default function AdminDashboardPage() {
   // Authentication states (Username & Password)
@@ -209,6 +219,155 @@ export default function AdminDashboardPage() {
     return () => clearInterval(interval);
   }, [lockoutSeconds]);
 
+  // Toast Notifications State & Tracking Refs
+  const [adminToasts, setAdminToasts] = useState<AdminToastItem[]>([]);
+  const knownBookingsRef = useRef<
+    Map<string, { code: string; licensePlate: string; day: string; time: string; serviceName: string; clientName: string; stage: number }>
+  >(new Map());
+  const hasInitialLoadedRef = useRef<boolean>(false);
+
+  // Subtle Web Audio API notification chime (zero external audio files needed)
+  const playNotificationChime = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const now = ctx.currentTime;
+
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = "sine";
+      osc1.frequency.setValueAtTime(880, now);
+      osc1.frequency.setValueAtTime(1174.66, now + 0.12);
+      gain1.gain.setValueAtTime(0.08, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.45);
+    } catch {
+      // Ignore if browser blocks audio before user interaction
+    }
+  }, []);
+
+  const dismissAdminToast = useCallback((toastId: string) => {
+    setAdminToasts((prev) => prev.filter((t) => t.id !== toastId));
+  }, []);
+
+  const pushAdminToast = useCallback(
+    (toast: Omit<AdminToastItem, "id">, playSound = false) => {
+      const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      setAdminToasts((prev) => [{ ...toast, id }, ...prev].slice(0, 4));
+      if (playSound) {
+        playNotificationChime();
+      }
+      const duration = toast.type === "new_booking" ? 7000 : 4200;
+      setTimeout(() => {
+        setAdminToasts((prev) => prev.filter((t) => t.id !== id));
+      }, duration);
+    },
+    [playNotificationChime]
+  );
+
+  // Compare incoming bookings list against known bookings to trigger real-time alerts
+  const syncKnownBookingsAndAlert = useCallback(
+    (freshList: AdminBooking[]) => {
+      if (!Array.isArray(freshList)) return;
+
+      if (!hasInitialLoadedRef.current) {
+        const initMap = new Map<
+          string,
+          { code: string; licensePlate: string; day: string; time: string; serviceName: string; clientName: string; stage: number }
+        >();
+        for (const b of freshList) {
+          const key = b.code || b.id;
+          if (key) {
+            initMap.set(key, {
+              code: b.code,
+              licensePlate: b.licensePlate,
+              day: b.day,
+              time: b.time,
+              serviceName: b.serviceName,
+              clientName: b.clientName,
+              stage: b.stage,
+            });
+          }
+        }
+        knownBookingsRef.current = initMap;
+        hasInitialLoadedRef.current = true;
+        return;
+      }
+
+      const prevMap = knownBookingsRef.current;
+      const nextMap = new Map<
+        string,
+        { code: string; licensePlate: string; day: string; time: string; serviceName: string; clientName: string; stage: number }
+      >();
+
+      for (const b of freshList) {
+        const key = b.code || b.id;
+        if (!key) continue;
+
+        const prev = prevMap.get(key);
+        if (!prev) {
+          // Brand new appointment arrived!
+          pushAdminToast(
+            {
+              type: "new_booking",
+              title: "🔔 ¡Nuevo Turno / Cita Agendada!",
+              message: `${b.serviceName} • ${b.day} a las ${b.time} (${b.clientName})`,
+              plate: b.licensePlate,
+            },
+            true
+          );
+        } else if (prev.day !== b.day || prev.time !== b.time) {
+          // Existing appointment was rescheduled by customer!
+          pushAdminToast(
+            {
+              type: "warning",
+              title: "🔄 Cita Reprogramada por Cliente",
+              message: `Cambió de (${prev.day} • ${prev.time}) a: ${b.day} a las ${b.time}`,
+              plate: b.licensePlate,
+            },
+            true
+          );
+        }
+
+        nextMap.set(key, {
+          code: b.code,
+          licensePlate: b.licensePlate,
+          day: b.day,
+          time: b.time,
+          serviceName: b.serviceName,
+          clientName: b.clientName,
+          stage: b.stage,
+        });
+      }
+
+      // Check if an active stage 1 booking was cancelled by the customer
+      if (freshList.length > 0 || prevMap.size === 1) {
+        for (const [oldKey, oldVal] of prevMap.entries()) {
+          if (!nextMap.has(oldKey) && oldVal.stage === 1) {
+            pushAdminToast(
+              {
+                type: "warning",
+                title: "❌ Cita Cancelada por el Cliente",
+                message: `Se liberó el turno del ${oldVal.day} a las ${oldVal.time} (${oldVal.clientName})`,
+                plate: oldVal.licensePlate,
+              },
+              true
+            );
+          }
+        }
+      }
+
+      knownBookingsRef.current = nextMap;
+    },
+    [pushAdminToast]
+  );
+
   // Load bookings, expenses and products
   const refreshData = () => {
     const b = getStoredBookings();
@@ -236,8 +395,11 @@ export default function AdminDashboardPage() {
       .then(({ bookings: freshB, expenses: freshE }) => {
         setBookings(freshB);
         setExpenses(freshE);
+        syncKnownBookingsAndAlert(freshB);
       })
-      .catch(() => {});
+      .catch(() => {
+        syncKnownBookingsAndAlert(b);
+      });
 
     syncProductsWithBackend()
       .then((freshP) => {
@@ -259,12 +421,23 @@ export default function AdminDashboardPage() {
           .then(({ bookings: freshB, expenses: freshE }) => {
             setBookings(freshB);
             setExpenses(freshE);
+            syncKnownBookingsAndAlert(freshB);
           })
           .catch(() => {});
-      }, 12000);
-      return () => clearInterval(interval);
+      }, 6000);
+
+      const handleStorageSync = () => {
+        const localB = getStoredBookings();
+        setBookings(localB);
+        syncKnownBookingsAndAlert(localB);
+      };
+      window.addEventListener("storage", handleStorageSync);
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener("storage", handleStorageSync);
+      };
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, syncKnownBookingsAndAlert]);
 
   useEffect(() => {
     setAgendaSlots(getSlotsForDate(agendaDate));
@@ -390,6 +563,11 @@ export default function AdminDashboardPage() {
     if (confirm(`¿Estás seguro de eliminar el producto "${productName}" del catálogo web?`)) {
       const updated = deleteStoredProduct(productId);
       setProducts(updated);
+      pushAdminToast({
+        type: "warning",
+        title: "🗑️ Producto Eliminado",
+        message: `"${productName}" fue retirado del catálogo.`,
+      });
     }
   };
 
@@ -397,6 +575,11 @@ export default function AdminDashboardPage() {
     if (confirm("¿Restaurar los 6 productos base originales del catálogo?")) {
       const updated = resetDefaultProducts();
       setProducts(updated);
+      pushAdminToast({
+        type: "info",
+        title: "🔄 Catálogo Restaurado",
+        message: "Se restauraron los 6 productos base del catálogo.",
+      });
     }
   };
 
@@ -414,6 +597,24 @@ export default function AdminDashboardPage() {
       currentBooking?.assignedEmployee
     );
     setBookings(updated);
+    const key = currentBooking?.code || currentBooking?.id;
+    if (key && knownBookingsRef.current.has(key)) {
+      const entry = knownBookingsRef.current.get(key)!;
+      knownBookingsRef.current.set(key, { ...entry, stage: nextStage });
+    }
+    pushAdminToast({
+      type: nextStage === 4 || nextStage === 5 ? "success" : "info",
+      title:
+        nextStage === 4
+          ? "✨ ¡Vehículo Listo para Entrega!"
+          : nextStage === 5
+          ? "✅ Vehículo Entregado"
+          : "🚿 Etapa de Bahía Actualizada",
+      message: `Pasó a: ${STAGE_CONFIG[nextStage]?.label}${
+        currentBooking?.assignedEmployee ? ` • Lavador: ${currentBooking.assignedEmployee}` : ""
+      }`,
+      plate: currentBooking?.licensePlate,
+    });
   };
 
   // Change stage directly
@@ -428,6 +629,17 @@ export default function AdminDashboardPage() {
       currentBooking?.assignedEmployee
     );
     setBookings(updated);
+    const key = currentBooking?.code || currentBooking?.id;
+    if (key && knownBookingsRef.current.has(key)) {
+      const entry = knownBookingsRef.current.get(key)!;
+      knownBookingsRef.current.set(key, { ...entry, stage: targetStage });
+    }
+    pushAdminToast({
+      type: targetStage === 4 || targetStage === 5 ? "success" : "info",
+      title: "🚿 Etapa Actualizada",
+      message: `Movido a: ${STAGE_CONFIG[targetStage]?.label}`,
+      plate: currentBooking?.licensePlate,
+    });
   };
 
   // Toggle paid status
@@ -436,27 +648,63 @@ export default function AdminDashboardPage() {
     const nextMethod = nextPaid ? (booking.paymentMethod && booking.paymentMethod !== "pendiente" ? booking.paymentMethod : "efectivo") : "pendiente";
     const updated = updateBookingPayment(booking.id, nextMethod, nextPaid);
     setBookings(updated);
+    pushAdminToast({
+      type: nextPaid ? "success" : "warning",
+      title: nextPaid ? "💳 Pago Confirmado" : "⏳ Pago Pendiente",
+      message: nextPaid
+        ? `Registrado en ${nextMethod.toUpperCase()} (${formatCurrency(booking.price)})`
+        : "Marcado como pendiente de pago en caja.",
+      plate: booking.licensePlate,
+    });
   };
 
   // Change payment method directly
   const handleChangePaymentMethod = (bookingId: string, method: AdminBooking["paymentMethod"]) => {
+    const targetBooking = bookings.find((b) => b.id === bookingId || b.code === bookingId);
     const willBePaid = method !== "pendiente";
     const updated = updateBookingPayment(bookingId, method, willBePaid);
     setBookings(updated);
+    pushAdminToast({
+      type: willBePaid ? "success" : "warning",
+      title: willBePaid ? "💳 Método de Pago Actualizado" : "⏳ Pago Pendiente",
+      message: willBePaid
+        ? `Pagado con ${method.toUpperCase()} (${formatCurrency(targetBooking?.price || 0)})`
+        : "Marcado como pendiente de cobro.",
+      plate: targetBooking?.licensePlate,
+    });
   };
 
   // Delete booking
   const handleDeleteBooking = (bookingId: string) => {
+    const targetBooking = bookings.find((b) => b.id === bookingId || b.code === bookingId);
     if (confirm("¿Estás seguro de eliminar este registro?")) {
+      if (targetBooking) {
+        knownBookingsRef.current.delete(targetBooking.code || targetBooking.id);
+      }
       const updated = deleteBooking(bookingId);
       setBookings(updated);
+      pushAdminToast({
+        type: "warning",
+        title: "🗑️ Registro Eliminado",
+        message: "El turno fue eliminado del listado.",
+        plate: targetBooking?.licensePlate,
+      });
     }
   };
 
   // Assign employee/detailer to a booking
   const handleAssignEmployee = (bookingId: string, employeeName: string) => {
+    const targetBooking = bookings.find((b) => b.id === bookingId || b.code === bookingId);
     const updated = updateBookingEmployee(bookingId, employeeName);
     setBookings(updated);
+    pushAdminToast({
+      type: "info",
+      title: "👤 Lavador Asignado",
+      message: employeeName
+        ? `${employeeName} asignado a este vehículo.`
+        : "Sin lavador asignado.",
+      plate: targetBooking?.licensePlate,
+    });
   };
 
   // Receipt update handler (e.g. payment status toggled in receipt)
@@ -477,7 +725,8 @@ export default function AdminDashboardPage() {
   const handleToggleSlot = (time: string, dateStr?: string) => {
     const key = dateStr ? `${dateStr}_${time}` : time;
     let updated: string[];
-    if (blockedSlots.includes(key)) {
+    const wasBlocked = blockedSlots.includes(key);
+    if (wasBlocked) {
       updated = blockedSlots.filter((t) => t !== key);
     } else {
       updated = [...blockedSlots, key];
@@ -485,10 +734,20 @@ export default function AdminDashboardPage() {
     setBlockedSlots(updated);
     localStorage.setItem("exclusive_blocked_slots", JSON.stringify(updated));
     window.dispatchEvent(new Event("exclusive_schedule_changed"));
+    pushAdminToast({
+      type: wasBlocked ? "success" : "warning",
+      title: wasBlocked ? "🔓 Horario Habilitado" : "🔒 Horario Bloqueado",
+      message: `El turno de las ${time} fue ${wasBlocked ? "liberado" : "bloqueado"}.`,
+    });
   };
 
   const showTempScheduleNotice = (msg: string) => {
     setScheduleNotice(msg);
+    pushAdminToast({
+      type: "info",
+      title: "📅 Agenda Actualizada",
+      message: msg,
+    });
     setTimeout(() => setScheduleNotice(""), 3200);
   };
 
@@ -890,6 +1149,13 @@ export default function AdminDashboardPage() {
                     const nextState = !isPromoEnabled;
                     setPromoEnabled(nextState);
                     setIsPromoEnabledState(nextState);
+                    pushAdminToast({
+                      type: nextState ? "success" : "warning",
+                      title: nextState ? "🎁 Bono 15% OFF Activado" : "⏸️ Bono 15% OFF Desactivado",
+                      message: nextState
+                        ? "Los clientes nuevos podrán redimir el 15% OFF por placa."
+                        : "El descuento de inauguración quedó oculto en la web.",
+                    });
                   }}
                   className={`h-10 px-3 rounded-xl text-xs font-bold border transition-all inline-flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
                     isPromoEnabled
@@ -912,6 +1178,13 @@ export default function AdminDashboardPage() {
                     const nextState = !isProductsSectionEnabled;
                     setProductsSectionEnabled(nextState);
                     setIsProductsSectionEnabledState(nextState);
+                    pushAdminToast({
+                      type: nextState ? "success" : "warning",
+                      title: nextState ? "🧪 Vitrina de Productos Visible" : "🙈 Vitrina de Productos Oculta",
+                      message: nextState
+                        ? "La sección de productos ya es visible para los usuarios."
+                        : "La sección de productos se ocultó de la página principal.",
+                    });
                   }}
                   className={`h-10 px-3 rounded-xl text-xs font-bold border transition-all inline-flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
                     isProductsSectionEnabled
@@ -2657,6 +2930,81 @@ export default function AdminDashboardPage() {
         )}
       </main>
 
+      {/* FLOATING REAL-TIME TOAST ALERTS STACK */}
+      {adminToasts.length > 0 && (
+        <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2.5 w-[92vw] max-w-sm pointer-events-none">
+          {adminToasts.map((t) => {
+            const isNewBooking = t.type === "new_booking";
+            const isSuccess = t.type === "success";
+            const isWarning = t.type === "warning";
+
+            return (
+              <div
+                key={t.id}
+                className={`pointer-events-auto rounded-2xl p-4 border shadow-2xl backdrop-blur-2xl flex items-start justify-between gap-3 animate-in fade-in slide-in-from-right-5 transition-all ${
+                  isNewBooking
+                    ? "bg-gradient-to-r from-cyan-950/95 via-slate-900/95 to-emerald-950/95 border-cyan-400 shadow-cyan-500/25 ring-1 ring-cyan-400/50"
+                    : isSuccess
+                    ? "bg-slate-900/95 border-emerald-500/40 shadow-emerald-500/15"
+                    : isWarning
+                    ? "bg-slate-900/95 border-amber-500/40 shadow-amber-500/15"
+                    : "bg-slate-900/95 border-cyan-500/35 shadow-cyan-500/15"
+                }`}
+              >
+                <div className="flex items-start gap-3 min-w-0">
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                      isNewBooking
+                        ? "bg-cyan-400 text-slate-950 shadow-md shadow-cyan-400/30 animate-bounce"
+                        : isSuccess
+                        ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                        : isWarning
+                        ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                        : "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                    }`}
+                  >
+                    {isNewBooking ? (
+                      <Bell className="w-4 h-4 stroke-[2.5]" />
+                    ) : isSuccess ? (
+                      <CheckCircle className="w-4 h-4" />
+                    ) : isWarning ? (
+                      <AlertCircle className="w-4 h-4" />
+                    ) : (
+                      <Sparkles className="w-4 h-4" />
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-xs sm:text-sm font-black text-white leading-tight">
+                        {t.title}
+                      </h4>
+                      {t.plate && (
+                        <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 font-mono text-[11px] font-black tracking-wider">
+                          {t.plate}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] sm:text-xs text-slate-300 mt-1 leading-snug">
+                      {t.message}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => dismissAdminToast(t.id)}
+                  className="p-1 rounded-lg bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white transition-colors shrink-0 cursor-pointer"
+                  aria-label="Cerrar alerta"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* MODAL: CREATE / EDIT PREMIUM PRODUCT */}
       <ProductFormModal
         isOpen={isProductModalOpen}
@@ -2665,7 +3013,14 @@ export default function AdminDashboardPage() {
           setEditingProduct(null);
         }}
         editingProduct={editingProduct}
-        onSaved={(updatedList) => setProducts(updatedList)}
+        onSaved={(updatedList) => {
+          setProducts(updatedList);
+          pushAdminToast({
+            type: "success",
+            title: "✨ Catálogo Actualizado",
+            message: "Los cambios del producto se guardaron con éxito.",
+          });
+        }}
       />
 
       {/* MODAL: EXPRESS WALK-IN REGISTRATION */}
@@ -2673,11 +3028,32 @@ export default function AdminDashboardPage() {
         isOpen={isWalkInOpen}
         onClose={() => setIsWalkInOpen(false)}
         onBookingCreated={(newB) => {
+          const key = newB.code || newB.id;
+          if (key) {
+            knownBookingsRef.current.set(key, {
+              code: newB.code,
+              licensePlate: newB.licensePlate,
+              day: newB.day,
+              time: newB.time,
+              serviceName: newB.serviceName,
+              clientName: newB.clientName,
+              stage: newB.stage,
+            });
+          }
           setBookings((prev) => [
             newB,
             ...prev.filter((b) => b.id !== newB.id && b.code !== newB.code),
           ]);
           setIsWalkInOpen(false);
+          pushAdminToast(
+            {
+              type: "new_booking",
+              title: "✅ Nuevo Turno Registrado",
+              message: `${newB.serviceName} • ${newB.day} (${newB.time})`,
+              plate: newB.licensePlate,
+            },
+            true
+          );
           refreshData();
         }}
         canViewFinancials={canViewFinancials}
@@ -2690,7 +3066,14 @@ export default function AdminDashboardPage() {
           isOpen={isEmployeesModalOpen}
           onClose={() => setIsEmployeesModalOpen(false)}
           employees={employeesList}
-          onEmployeesUpdated={(newList) => setEmployeesList(newList)}
+          onEmployeesUpdated={(newList) => {
+            setEmployeesList(newList);
+            pushAdminToast({
+              type: "info",
+              title: "👥 Equipo de Lavadores Actualizado",
+              message: `Lista de personal actualizada (${newList.length} operarios).`,
+            });
+          }}
         />
       )}
 
@@ -2698,7 +3081,14 @@ export default function AdminDashboardPage() {
       <AddExpenseModal
         isOpen={isExpenseOpen}
         onClose={() => setIsExpenseOpen(false)}
-        onExpenseAdded={() => refreshData()}
+        onExpenseAdded={() => {
+          pushAdminToast({
+            type: "info",
+            title: "🧾 Gasto Registrado en Caja",
+            message: "El egreso fue descontado de la utilidad neta.",
+          });
+          refreshData();
+        }}
       />
 
       {/* MODAL: CUSTOMER RECEIPT (IMPRIMIR / PDF / WHATSAPP) */}
