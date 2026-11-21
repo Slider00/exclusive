@@ -1079,10 +1079,10 @@ export default function AdminDashboardPage() {
 
               <Link
                 href="/"
-                className="text-xs text-slate-400 hover:text-cyan-400 transition-colors inline-flex items-center gap-1"
+                className="w-full py-3 px-4 rounded-xl text-xs font-extrabold uppercase tracking-wider bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 hover:text-white border border-cyan-400/45 hover:border-cyan-300 shadow-lg shadow-cyan-500/15 active:scale-95 transition-all flex items-center justify-center gap-2 group"
               >
+                <ChevronLeft className="w-4 h-4 text-cyan-400 group-hover:-translate-x-1 transition-transform" />
                 <span>Volver a la Página Principal</span>
-                <ExternalLink className="w-3 h-3" />
               </Link>
             </div>
           </form>
